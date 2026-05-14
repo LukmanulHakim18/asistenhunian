@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/server";
 import { sendOrderCreatedNotification } from "@/lib/notifications";
+import { rateLimit } from "@/lib/rate-limit";
 
 const orderItemSchema = z.object({
   serviceId: z.string().uuid(),
@@ -22,6 +23,16 @@ const createOrderSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    "unknown";
+  if (!rateLimit(`orders:${ip}`, 5, 60 * 60 * 1000)) {
+    return NextResponse.json(
+      { error: "Terlalu banyak permintaan. Coba lagi dalam 1 jam." },
+      { status: 429 }
+    );
+  }
+
   try {
     const body = await request.json();
     const parsed = createOrderSchema.safeParse(body);
