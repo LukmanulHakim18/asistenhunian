@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/server";
 import { createClient } from "@/lib/supabase/server";
+import {
+  sendOrderConfirmedNotification,
+  sendOrderCompletedNotification,
+} from "@/lib/notifications";
 import type { OrderStatus } from "@/types/database";
 
 const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
@@ -110,7 +114,16 @@ export async function PATCH(
       notes: obNotes ?? null,
     });
 
-    // TODO (Phase 4): Trigger notification to customer
+    // Send notification (non-blocking)
+    if (status === "confirmed") {
+      sendOrderConfirmedNotification(id).catch((err) =>
+        console.error("[Notification] order_confirmed failed:", err)
+      );
+    } else if (status === "completed") {
+      sendOrderCompletedNotification(id).catch((err) =>
+        console.error("[Notification] order_completed failed:", err)
+      );
+    }
 
     return NextResponse.json({ success: true, newStatus: status });
   } catch (error) {

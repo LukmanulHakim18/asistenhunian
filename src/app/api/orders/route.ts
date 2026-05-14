@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/server";
+import { sendOrderCreatedNotification } from "@/lib/notifications";
 
 const orderItemSchema = z.object({
   serviceId: z.string().uuid(),
@@ -126,7 +127,10 @@ export async function POST(request: NextRequest) {
       changed_by: user?.id ?? null,
     });
 
-    // TODO (Phase 4): Send notifications to customer and OBs
+    // Send notifications (non-blocking — don't fail order if notif fails)
+    sendOrderCreatedNotification(order.id).catch((err) =>
+      console.error("[Notification] order_created failed:", err)
+    );
 
     return NextResponse.json(
       { orderId: order.id, orderNumber },
