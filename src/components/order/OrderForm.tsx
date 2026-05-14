@@ -351,7 +351,7 @@ export function OrderForm({ allServices }: OrderFormProps) {
               <Select
                 value={paymentMethod}
                 onValueChange={(v) =>
-                  setPaymentMethod(v as "cash" | "transfer")
+                  setPaymentMethod(String(v) as "cash" | "transfer")
                 }
               >
                 <SelectTrigger>

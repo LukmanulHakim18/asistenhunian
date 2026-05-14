@@ -1,12 +1,15 @@
 import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import type { Database } from "@/types/database";
+
+// No Database generic on any client — Supabase's GenericTable requires
+// Insert: Record<string, unknown> but TypeScript interface types don't produce
+// index signatures. Use .returns<T>() on select queries for type safety.
 
 export async function createClient() {
   const cookieStore = await cookies();
 
-  return createServerClient<Database>(
+  return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
