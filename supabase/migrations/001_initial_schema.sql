@@ -187,47 +187,54 @@ ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_status_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notification_log ENABLE ROW LEVEL SECURITY;
 
+-- Helper: cek admin tanpa rekursi (SECURITY DEFINER bypass RLS)
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE
+SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'::user_role
+  );
+$$;
+
 -- Profiles
 CREATE POLICY "Users can view own profile"
   ON profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update own profile"
   ON profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "Admins can view all profiles"
-  ON profiles FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
-  );
-CREATE POLICY "Admins can manage profiles"
-  ON profiles FOR ALL USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
-  );
+  ON profiles FOR SELECT USING (public.is_admin());
+CREATE POLICY "Admins can update all profiles"
+  ON profiles FOR UPDATE USING (public.is_admin());
+CREATE POLICY "Admins can delete profiles"
+  ON profiles FOR DELETE USING (public.is_admin());
 
--- Services: public read for active, admin write
+-- Services: public read, admin write
 CREATE POLICY "Anyone can view active services"
   ON services FOR SELECT USING (is_active = true);
-CREATE POLICY "Admins can manage services"
-  ON services FOR ALL USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
-  );
+CREATE POLICY "Admins can write services"
+  ON services FOR INSERT WITH CHECK (public.is_admin());
+CREATE POLICY "Admins can update services"
+  ON services FOR UPDATE USING (public.is_admin());
+CREATE POLICY "Admins can delete services"
+  ON services FOR DELETE USING (public.is_admin());
 
--- Service Categories: public read
+-- Service Categories: public read, admin write
 CREATE POLICY "Anyone can view categories"
   ON service_categories FOR SELECT USING (true);
-CREATE POLICY "Admins can manage categories"
-  ON service_categories FOR ALL USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
-  );
+CREATE POLICY "Admins can write categories"
+  ON service_categories FOR INSERT WITH CHECK (public.is_admin());
+CREATE POLICY "Admins can update categories"
+  ON service_categories FOR UPDATE USING (public.is_admin());
+CREATE POLICY "Admins can delete categories"
+  ON service_categories FOR DELETE USING (public.is_admin());
 
 -- Orders: customers see own, OB see assigned, admin see all
 CREATE POLICY "Customers can view own orders"
   ON orders FOR SELECT USING (customer_id = auth.uid());
 CREATE POLICY "OB can view assigned and unassigned orders"
-  ON orders FOR SELECT USING (
-    ob_id = auth.uid() OR ob_id IS NULL
-  );
+  ON orders FOR SELECT USING (ob_id = auth.uid() OR ob_id IS NULL);
 CREATE POLICY "Admins can view all orders"
-  ON orders FOR ALL USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
-  );
+  ON orders FOR ALL USING (public.is_admin());
 CREATE POLICY "Anyone can insert orders"
   ON orders FOR INSERT WITH CHECK (true);
 CREATE POLICY "OB can update assigned orders"
@@ -239,12 +246,25 @@ CREATE POLICY "Order items visible with order access"
     EXISTS (
       SELECT 1 FROM orders o
       WHERE o.id = order_id
-        AND (o.customer_id = auth.uid() OR o.ob_id = auth.uid()
-          OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'))
+        AND (o.customer_id = auth.uid() OR o.ob_id = auth.uid() OR public.is_admin())
     )
   );
 CREATE POLICY "Anyone can insert order items"
   ON order_items FOR INSERT WITH CHECK (true);
+
+-- ============================================================
+-- Table Grants (PostgreSQL 15: tidak otomatis grant ke public)
+-- ============================================================
+GRANT SELECT ON services TO anon, authenticated;
+GRANT SELECT ON service_categories TO anon, authenticated;
+GRANT SELECT, INSERT ON orders TO anon, authenticated;
+GRANT SELECT, INSERT ON order_items TO anon, authenticated;
+GRANT SELECT ON order_status_history TO anon, authenticated;
+GRANT SELECT, UPDATE ON profiles TO authenticated;
+GRANT INSERT ON profiles TO anon, authenticated;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
 
 -- ============================================================
 -- Seed Data: Service Categories

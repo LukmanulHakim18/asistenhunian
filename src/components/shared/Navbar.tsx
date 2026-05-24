@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -56,18 +57,14 @@ export function Navbar() {
   return (
     <nav className="border-b bg-background sticky top-0 z-50">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <Link href="/" className="font-bold text-lg">
-          🧹 Jasa OB Rusun
+        <Link href="/" className="flex items-center gap-2 font-bold text-lg" aria-label="Asisten Hunian — Kembali ke beranda">
+          <div className="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center shrink-0">
+            <Sparkles className="h-4 w-4 text-white" />
+          </div>
+          Asisten Hunian
         </Link>
 
         <div className="flex items-center gap-3">
-          <Link
-            href="/order/track"
-            className="text-sm text-muted-foreground hover:text-foreground"
-          >
-            Cek Order
-          </Link>
-
           {user ? (
             <>
               <Link
@@ -81,20 +78,12 @@ export function Navbar() {
               </Button>
             </>
           ) : (
-            <>
-              <Link
-                href="/login"
-                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-              >
-                Masuk
-              </Link>
-              <Link
-                href="/order"
-                className={cn(buttonVariants({ size: "sm" }))}
-              >
-                Pesan Sekarang
-              </Link>
-            </>
+            <Link
+              href="/login"
+              className={cn(buttonVariants({ size: "sm" }))}
+            >
+              Masuk
+            </Link>
           )}
         </div>
       </div>

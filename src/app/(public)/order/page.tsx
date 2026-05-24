@@ -1,9 +1,14 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { OrderForm } from "@/components/order/OrderForm";
+import { redirect } from "next/navigation";
 
 async function OrderPageContent() {
   const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login?next=/order");
+
   const { data: services } = await supabase
     .from("services")
     .select("*")

@@ -4,11 +4,12 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, ClipboardList, LogOut } from "lucide-react";
+import { LayoutDashboard, ClipboardList, Wallet, LogOut } from "lucide-react";
 
 const navItems = [
   { href: "/ob/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/ob/orders", label: "Daftar Order", icon: ClipboardList },
+  { href: "/ob/earnings", label: "Penghasilan", icon: Wallet },
 ];
 
 export function OBSidebar() {

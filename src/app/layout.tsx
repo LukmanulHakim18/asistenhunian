@@ -9,18 +9,18 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Jasa OB Rusun",
-  description: "Layanan kebersihan unit rusun terpercaya — bersihkan unit, kasur, karpet, dan lebih.",
+  title: "Asisten Hunian",
+  description: "Layanan kebersihan hunian terpercaya — bersihkan unit, kasur, karpet, dan lebih.",
   openGraph: {
-    title: "Jasa OB Rusun",
-    description: "Layanan kebersihan unit rusun terpercaya",
+    title: "Asisten Hunian",
+    description: "Layanan kebersihan hunian terpercaya",
     type: "website",
     locale: "id_ID",
   },
   twitter: {
     card: "summary",
-    title: "Jasa OB Rusun",
-    description: "Layanan kebersihan unit rusun terpercaya",
+    title: "Asisten Hunian",
+    description: "Layanan kebersihan hunian terpercaya",
   },
 };
 

@@ -18,7 +18,7 @@ const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
 
 const updateStatusSchema = z.object({
   status: z.enum(["confirmed", "in_progress", "completed", "cancelled"]),
-  confirmedDatetime: z.string().datetime().optional(),
+  confirmedDatetime: z.string().optional(),
   obNotes: z.string().max(500).optional(),
 });
 

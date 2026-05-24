@@ -3,7 +3,6 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ServiceCard } from "./ServiceCard";
-import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 import type { ServiceWithCategory, ServiceCategory } from "@/types/database";
 import { ShoppingCart } from "lucide-react";
@@ -58,27 +57,28 @@ export function ServiceCatalog({ services, categories }: Props) {
     <div>
       {/* Category Filter */}
       <div className="flex gap-2 flex-wrap mb-6">
-        <Button
-          variant={activeCategory === "all" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setActiveCategory("all")}
-        >
-          Semua
-        </Button>
-        {categories.map((cat) => (
-          <Button
-            key={cat.id}
-            variant={activeCategory === cat.id ? "default" : "outline"}
-            size="sm"
-            onClick={() => setActiveCategory(cat.id)}
-          >
-            {cat.name}
-          </Button>
-        ))}
+        {[{ id: "all", name: "Semua" }, ...categories].map((cat) => {
+          const isActive = activeCategory === cat.id;
+          return (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => setActiveCategory(cat.id)}
+              className={[
+                "whitespace-nowrap rounded-full px-4 text-sm font-medium min-h-[44px]",
+                isActive
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border bg-background text-foreground",
+              ].join(" ")}
+            >
+              {cat.name}
+            </button>
+          );
+        })}
       </div>
 
       {/* Service Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
         {filteredServices.map((service) => (
           <ServiceCard
             key={service.id}

@@ -28,7 +28,7 @@ function emailWrapper(content: string): string {
 </head>
 <body>
   <div class="container">
-    <div class="header"><h1>🧹 Jasa OB Rusun</h1></div>
+    <div class="header"><h1>Asisten Hunian</h1></div>
     <div class="body">${content}</div>
     <div class="footer">Terima kasih telah menggunakan layanan kami.</div>
   </div>

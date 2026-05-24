@@ -109,7 +109,7 @@ export async function sendOrderConfirmedNotification(orderId: string) {
 
   if (!order) return;
 
-  const obName = order.ob_profile?.full_name ?? "OB Rusun";
+  const obName = order.ob_profile?.full_name ?? "Tim Asisten Hunian";
 
   const { subject, html } = orderConfirmedEmail(order, obName);
   const emailResult = await sendEmail({
@@ -162,7 +162,7 @@ export async function sendOrderCompletedNotification(orderId: string) {
 
   if (!order) return;
 
-  const obName = order.ob_profile?.full_name ?? "OB Rusun";
+  const obName = order.ob_profile?.full_name ?? "Tim Asisten Hunian";
 
   const { subject, html } = orderCompletedEmail(order, obName);
   const emailResult = await sendEmail({

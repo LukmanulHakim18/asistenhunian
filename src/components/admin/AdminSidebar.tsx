@@ -9,6 +9,7 @@ import {
   Package,
   Users,
   ClipboardList,
+  BarChart3,
   LogOut,
 } from "lucide-react";
 
@@ -17,6 +18,7 @@ const navItems = [
   { href: "/admin/catalog", label: "Katalog Layanan", icon: Package },
   { href: "/admin/ob", label: "Kelola OB", icon: Users },
   { href: "/admin/orders", label: "Semua Order", icon: ClipboardList },
+  { href: "/admin/laporan", label: "Laporan Keuangan", icon: BarChart3 },
 ];
 
 export function AdminSidebar() {

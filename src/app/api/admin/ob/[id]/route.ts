@@ -31,6 +31,17 @@ export async function PATCH(
   const body = await request.json();
   const supabase = createAdminClient();
 
+  if (body.password !== undefined) {
+    if (typeof body.password !== "string" || body.password.length < 6) {
+      return NextResponse.json({ error: "Password minimal 6 karakter" }, { status: 400 });
+    }
+    const { error } = await supabase.auth.admin.updateUserById(id, { password: body.password });
+    if (error) {
+      return NextResponse.json({ error: "Gagal reset password" }, { status: 500 });
+    }
+    return NextResponse.json({ success: true });
+  }
+
   const { error } = await supabase
     .from("profiles")
     .update({ is_active: body.is_active } as object)

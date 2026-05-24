@@ -65,7 +65,8 @@ export function OBOrderCard({ order, compact = false }: Props) {
       toast.error("Masukkan waktu pelaksanaan yang pasti");
       return;
     }
-    updateStatus("confirmed", { confirmedDatetime });
+    const isoDatetime = new Date(confirmedDatetime).toISOString();
+    updateStatus("confirmed", { confirmedDatetime: isoDatetime });
     setShowConfirmForm(false);
   };
 

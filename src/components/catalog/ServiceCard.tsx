@@ -2,33 +2,38 @@ import Image from "next/image";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
-import type { Service } from "@/types/database";
+import { ServicePlaceholder } from "./ServicePlaceholder";
+import type { ServiceWithCategory } from "@/types/database";
 
 interface Props {
-  service: Service;
+  service: ServiceWithCategory;
   quantity: number;
   onAdd: () => void;
   onRemove: () => void;
 }
 
 export function ServiceCard({ service, quantity, onAdd, onRemove }: Props) {
+  const categorySlug = service.service_categories?.slug ?? null;
+
   return (
-    <Card className="overflow-hidden flex flex-col">
-      {service.image_url && (
-        <div className="relative h-40 w-full bg-muted">
+    <Card className="overflow-hidden flex flex-col transition-shadow duration-200 hover:shadow-md">
+      <div className="relative h-44 w-full bg-muted overflow-hidden">
+        {service.image_url ? (
           <Image
             src={service.image_url}
             alt={service.name}
             fill
-            className="object-cover"
+            className="object-cover transition-transform duration-300 hover:scale-105"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
-        </div>
-      )}
-      {!service.image_url && (
-        <div className="h-40 w-full bg-muted flex items-center justify-center text-4xl">
-          🧹
-        </div>
-      )}
+        ) : (
+          <ServicePlaceholder
+            categorySlug={categorySlug}
+            serviceName={service.name}
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+      </div>
       <CardContent className="flex-1 pt-4">
         <h3 className="font-semibold">{service.name}</h3>
         {service.description && (
