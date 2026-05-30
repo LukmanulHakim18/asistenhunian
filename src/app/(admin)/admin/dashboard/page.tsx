@@ -1,42 +1,22 @@
-import { createClient } from "@/lib/supabase/server";
+import { adminApi } from "@/lib/api/admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 
-export default async function AdminDashboardPage() {
-  const supabase = await createClient();
+export const dynamic = "force-dynamic";
 
-  const [
-    { count: totalOrders },
-    { count: pendingOrders },
-    { count: completedOrders },
-    { data: revenueData },
-    { count: totalOBs },
-  ] = await Promise.all([
-    supabase.from("orders").select("*", { count: "exact", head: true }),
-    supabase
-      .from("orders")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "pending"),
-    supabase
-      .from("orders")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "completed"),
-    supabase
-      .from("orders")
-      .select("total")
-      .eq("status", "completed")
-      .returns<{ total: number }[]>(),
-    supabase
-      .from("profiles")
-      .select("*", { count: "exact", head: true })
-      .eq("role", "ob")
-      .eq("is_active", true),
+export default async function AdminDashboardPage() {
+  const [orders, obList] = await Promise.all([
+    adminApi.listOrders().catch(() => []),
+    adminApi.listOB().catch(() => []),
   ]);
 
-  const totalRevenue = (revenueData ?? []).reduce(
-    (sum, row) => sum + row.total,
-    0
-  );
+  const totalOrders = orders.length;
+  const pendingOrders = orders.filter((o) => o.status === "pending").length;
+  const completedOrders = orders.filter((o) => o.status === "completed").length;
+  const totalRevenue = orders
+    .filter((o) => o.status === "completed")
+    .reduce((sum, o) => sum + o.total, 0);
+  const activeOBs = obList.filter((ob) => ob.is_active).length;
 
   return (
     <div className="space-y-6">
@@ -48,43 +28,31 @@ export default async function AdminDashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Order
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Order</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{totalOrders ?? 0}</p>
+            <p className="text-2xl font-bold">{totalOrders}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Menunggu Konfirmasi
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Menunggu Konfirmasi</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-yellow-600">
-              {pendingOrders ?? 0}
-            </p>
+            <p className="text-2xl font-bold text-yellow-600">{pendingOrders}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Order Selesai
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Order Selesai</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-green-600">
-              {completedOrders ?? 0}
-            </p>
+            <p className="text-2xl font-bold text-green-600">{completedOrders}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Revenue
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-xl font-bold">{formatCurrency(totalRevenue)}</p>
@@ -95,12 +63,10 @@ export default async function AdminDashboardPage() {
       <div className="grid grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              OB Aktif
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">OB Aktif</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{totalOBs ?? 0}</p>
+            <p className="text-2xl font-bold">{activeOBs}</p>
           </CardContent>
         </Card>
       </div>

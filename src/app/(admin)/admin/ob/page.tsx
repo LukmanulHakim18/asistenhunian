@@ -1,25 +1,10 @@
-import { createAdminClient } from "@/lib/supabase/server";
+import { adminApi } from "@/lib/api/admin";
 import { OBManager } from "@/components/admin/OBManager";
-import type { Profile } from "@/types/database";
 
-export type OBWithEmail = Profile & { email: string };
+export const dynamic = "force-dynamic";
 
 export default async function AdminOBPage() {
-  const supabase = createAdminClient();
-
-  const [{ data: profiles }, { data: authData }] = await Promise.all([
-    supabase.from("profiles").select("*").eq("role", "ob").order("full_name").returns<Profile[]>(),
-    supabase.auth.admin.listUsers({ perPage: 1000 }),
-  ]);
-
-  const emailMap = Object.fromEntries(
-    (authData?.users ?? []).map((u) => [u.id, u.email ?? ""])
-  );
-
-  const obList: OBWithEmail[] = (profiles ?? []).map((p) => ({
-    ...p,
-    email: emailMap[p.id] ?? "",
-  }));
+  const obList = await adminApi.listOB().catch(() => []);
 
   return (
     <div>

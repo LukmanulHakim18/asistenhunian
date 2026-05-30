@@ -1,64 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { OrderStatusBadge } from "@/components/ob/OrderStatusBadge";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { toast } from "sonner";
-import type { Order, OrderItem, OrderStatus, Profile } from "@/types/database";
-
-type OrderWithDetails = Order & {
-  order_items: OrderItem[];
-  ob: Pick<Profile, "id" | "full_name"> | null;
-};
+import type { Order, OrderStatus } from "@/lib/api/types";
 
 interface Props {
-  orders: OrderWithDetails[];
-  obList: Pick<Profile, "id" | "full_name">[];
+  orders: Order[];
 }
 
-export function AdminOrdersTable({ orders, obList }: Props) {
+export function AdminOrdersTable({ orders }: Props) {
   const [filterStatus, setFilterStatus] = useState<OrderStatus | "all">("all");
-  const [assigning, setAssigning] = useState<string | null>(null);
-  const router = useRouter();
 
   const filtered =
     filterStatus === "all"
       ? orders
       : orders.filter((o) => o.status === filterStatus);
-
-  const handleAssignOB = async (orderId: string, obId: string) => {
-    setAssigning(orderId);
-    const res = await fetch(`/api/admin/orders/${orderId}/assign`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ob_id: obId }),
-    });
-    if (res.ok) {
-      toast.success("OB berhasil di-assign");
-      router.refresh();
-    } else {
-      toast.error("Gagal assign OB");
-    }
-    setAssigning(null);
-  };
 
   return (
     <div className="space-y-4">
@@ -80,9 +44,7 @@ export function AdminOrdersTable({ orders, obList }: Props) {
             <SelectItem value="cancelled">Dibatalkan</SelectItem>
           </SelectContent>
         </Select>
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} order
-        </span>
+        <span className="text-sm text-muted-foreground">{filtered.length} order</span>
       </div>
 
       <div className="overflow-x-auto">
@@ -101,14 +63,10 @@ export function AdminOrdersTable({ orders, obList }: Props) {
           <TableBody>
             {filtered.map((order) => (
               <TableRow key={order.id}>
-                <TableCell className="font-mono text-sm">
-                  {order.order_number}
-                </TableCell>
+                <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
                 <TableCell>
                   <p className="font-medium">{order.customer_name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {order.customer_phone}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{order.customer_phone}</p>
                 </TableCell>
                 <TableCell>{order.unit_number}</TableCell>
                 <TableCell>{formatDate(order.requested_date)}</TableCell>
@@ -116,31 +74,10 @@ export function AdminOrdersTable({ orders, obList }: Props) {
                   <OrderStatusBadge status={order.status} />
                 </TableCell>
                 <TableCell>
-                  {order.status === "pending" && !order.ob_id ? (
-                    <Select
-                      onValueChange={(obId) => {
-                        const id = String(obId);
-                        if (id) handleAssignOB(order.id, id);
-                      }}
-                      disabled={assigning === order.id}
-                    >
-                      <SelectTrigger className="w-36 h-7 text-xs">
-                        <SelectValue placeholder="Assign OB..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {obList.map((ob) => (
-                          <SelectItem key={ob.id} value={ob.id}>
-                            {ob.full_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  {order.ob ? (
+                    <span className="text-sm">{order.ob.full_name}</span>
                   ) : (
-                    <span className="text-sm">
-                      {order.ob?.full_name ?? (
-                        <Badge variant="outline">Belum</Badge>
-                      )}
-                    </span>
+                    <Badge variant="outline">Belum</Badge>
                   )}
                 </TableCell>
                 <TableCell className="text-right font-medium">
@@ -150,10 +87,7 @@ export function AdminOrdersTable({ orders, obList }: Props) {
             ))}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="text-center py-8 text-muted-foreground"
-                >
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   Tidak ada order dengan filter ini.
                 </TableCell>
               </TableRow>

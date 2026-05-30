@@ -1,20 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
+import { adminApi } from "@/lib/api/admin";
 import { formatCurrency } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Banknote, CreditCard, TrendingUp, Receipt } from "lucide-react";
 
-interface RevenueOrder {
-  id: string;
-  total: number;
-  payment_method: string;
-  requested_date: string;
-  ob_id: string | null;
-}
-
-interface OBProfile {
-  id: string;
-  full_name: string;
-}
+export const dynamic = "force-dynamic";
 
 function formatMonth(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("id-ID", {
@@ -29,24 +18,8 @@ function getMonthKey(dateStr: string) {
 }
 
 export default async function AdminRevenueReportPage() {
-  const supabase = await createClient();
-
-  const [{ data: rawOrders }, { data: obProfiles }] = await Promise.all([
-    supabase
-      .from("orders")
-      .select("id, total, payment_method, requested_date, ob_id")
-      .eq("status", "completed")
-      .order("requested_date", { ascending: false })
-      .returns<RevenueOrder[]>(),
-    supabase
-      .from("profiles")
-      .select("id, full_name")
-      .eq("role", "ob")
-      .returns<OBProfile[]>(),
-  ]);
-
-  const orders = rawOrders ?? [];
-  const obMap = Object.fromEntries((obProfiles ?? []).map((p) => [p.id, p.full_name]));
+  const allOrders = await adminApi.listOrders().catch(() => []);
+  const orders = allOrders.filter((o) => o.status === "completed");
 
   const totalBruto = orders.reduce((s, o) => s + o.total, 0);
   const cashOrders = orders.filter((o) => o.payment_method === "cash");
@@ -58,7 +31,12 @@ export default async function AdminRevenueReportPage() {
   const monthlyMap = new Map<string, { label: string; cash: number; transfer: number; count: number }>();
   for (const o of orders) {
     const key = getMonthKey(o.requested_date);
-    const existing = monthlyMap.get(key) ?? { label: formatMonth(o.requested_date), cash: 0, transfer: 0, count: 0 };
+    const existing = monthlyMap.get(key) ?? {
+      label: formatMonth(o.requested_date),
+      cash: 0,
+      transfer: 0,
+      count: 0,
+    };
     if (o.payment_method === "cash") existing.cash += o.total;
     else existing.transfer += o.total;
     existing.count += 1;
@@ -69,17 +47,19 @@ export default async function AdminRevenueReportPage() {
     .map(([, v]) => v);
 
   // Group by OB
-  const obMap2 = new Map<string, { name: string; cash: number; transfer: number; count: number }>();
+  const obMap = new Map<string, { name: string; cash: number; transfer: number; count: number }>();
   for (const o of orders) {
-    const obId = o.ob_id ?? "unassigned";
-    const name = o.ob_id ? (obMap[o.ob_id] ?? "OB Tidak Diketahui") : "Belum Ditugaskan";
-    const existing = obMap2.get(obId) ?? { name, cash: 0, transfer: 0, count: 0 };
+    const key = o.ob_id ?? "unassigned";
+    const name = o.ob?.full_name ?? (o.ob_id ? "OB Tidak Diketahui" : "Belum Ditugaskan");
+    const existing = obMap.get(key) ?? { name, cash: 0, transfer: 0, count: 0 };
     if (o.payment_method === "cash") existing.cash += o.total;
     else existing.transfer += o.total;
     existing.count += 1;
-    obMap2.set(obId, existing);
+    obMap.set(key, existing);
   }
-  const obRows = Array.from(obMap2.values()).sort((a, b) => (b.cash + b.transfer) - (a.cash + a.transfer));
+  const obRows = Array.from(obMap.values()).sort(
+    (a, b) => b.cash + b.transfer - (a.cash + a.transfer),
+  );
 
   return (
     <div className="space-y-8">
@@ -104,7 +84,6 @@ export default async function AdminRevenueReportPage() {
             <p className="text-xs text-muted-foreground mt-1">{orders.length} order</p>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
@@ -117,7 +96,6 @@ export default async function AdminRevenueReportPage() {
             <p className="text-xs text-muted-foreground mt-1">{cashOrders.length} order</p>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
@@ -130,7 +108,6 @@ export default async function AdminRevenueReportPage() {
             <p className="text-xs text-muted-foreground mt-1">{transferOrders.length} order</p>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
