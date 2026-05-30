@@ -5,7 +5,8 @@ export const dynamic = "force-dynamic";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
+import { apiFetch } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,35 +27,30 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const supabase = createClient();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
+    try {
+      await apiFetch("/api/v1/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
           full_name: fullName,
+          email,
           phone,
           unit_number: unitNumber,
-          role: "customer",
-        },
-      },
-    });
-
-    if (error) {
-      toast.error(error.message);
+          password,
+        }),
+      });
+      toast.success("Akun berhasil dibuat! Silakan masuk.");
+      router.push("/login");
+    } catch (err) {
+      const message =
+        err instanceof ApiError ? err.message : "Terjadi kesalahan, coba lagi";
+      toast.error(message);
       setLoading(false);
-      return;
     }
-
-    // The DB trigger (handle_new_user) creates the profile from auth metadata.
-    // unit_number is passed in data above and handled in the migration trigger.
-    toast.success("Akun berhasil dibuat! Silakan masuk.");
-    router.push("/login");
   };
 
   return (
@@ -115,10 +111,10 @@ export default function RegisterPage() {
               <Input
                 id="password"
                 type="password"
-                placeholder="Minimal 6 karakter"
+                placeholder="Minimal 8 karakter"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                minLength={6}
+                minLength={8}
                 required
               />
             </div>

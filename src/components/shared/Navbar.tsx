@@ -3,54 +3,42 @@
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
-import type { User } from "@supabase/supabase-js";
-import type { UserRole } from "@/types/database";
+import type { UserRole } from "@/lib/api/types";
+
+interface SessionInfo {
+  id: string;
+  name: string;
+  role: UserRole;
+}
 
 export function Navbar() {
-  const [user, setUser] = useState<User | null>(null);
-  const [role, setRole] = useState<UserRole | null>(null);
+  const [session, setSession] = useState<SessionInfo | null>(null);
   const router = useRouter();
-  const supabase = createClient();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user);
-      if (data.user) {
-        supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", data.user.id)
-          .returns<{ role: UserRole }[]>()
-          .single()
-          .then(({ data: profile }) => {
-            if (profile) setRole(profile.role);
-          });
-      }
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_, session) => {
-      setUser(session?.user ?? null);
-      if (!session) setRole(null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [supabase]);
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((user) => {
+        if (user) {
+          setSession({ id: user.id, name: user.full_name, role: user.role });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    await fetch("/api/auth/logout", { method: "POST" });
+    setSession(null);
     router.push("/");
     router.refresh();
   };
 
   const getDashboardLink = () => {
-    if (role === "admin") return "/admin/dashboard";
-    if (role === "ob") return "/ob/dashboard";
+    if (session?.role === "admin") return "/admin/dashboard";
+    if (session?.role === "ob") return "/ob/dashboard";
     return "/dashboard";
   };
 
@@ -65,7 +53,7 @@ export function Navbar() {
         </Link>
 
         <div className="flex items-center gap-3">
-          {user ? (
+          {session ? (
             <>
               <Link
                 href={getDashboardLink()}
