@@ -13,7 +13,7 @@ interface Props {
 }
 
 export function ServiceCard({ service, quantity, onAdd, onRemove }: Props) {
-  const categorySlug = service.service_categories?.slug ?? null;
+  const categorySlug = service.category?.slug ?? null;
 
   return (
     <Card className="overflow-hidden flex flex-col transition-shadow duration-200 hover:shadow-md">

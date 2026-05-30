@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { apiFetch, ApiError } from "@/lib/api/client";
+import { apiFetchData, ApiError } from "@/lib/api/client";
 import type { CreateOrderRequest, CreateOrderResponse, PaymentMethod, Service, User } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -120,7 +120,7 @@ export function OrderForm({ allServices }: OrderFormProps) {
       };
       if (preferredTimeNote) payload.preferred_time_note = preferredTimeNote;
 
-      const result = await apiFetch<CreateOrderResponse>("/api/v1/orders", {
+      const result = await apiFetchData<CreateOrderResponse>("/api/v1/orders", {
         method: "POST",
         body: JSON.stringify(payload),
       });

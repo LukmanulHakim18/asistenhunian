@@ -1,20 +1,20 @@
-import { apiFetch, serverFetch } from "./client";
-import type { Service, ServiceCategory, ServiceRequest } from "./types";
+import { apiFetchData, serverFetchData, serverFetch } from "./client";
+import type { Service, ServiceCategory, ServiceWithCategory, ServiceRequest } from "./types";
 
 export const servicesApi = {
   listCategories: () =>
-    apiFetch<ServiceCategory[]>("/api/v1/service-categories"),
+    apiFetchData<ServiceCategory[]>("/api/v1/service-categories"),
 
-  list: () => apiFetch<Service[]>("/api/v1/services"),
+  list: () => apiFetchData<ServiceWithCategory[]>("/api/v1/services"),
 
   create: (body: ServiceRequest) =>
-    serverFetch<Service>("/api/v1/services", {
+    serverFetchData<Service>("/api/v1/services", {
       method: "POST",
       body: JSON.stringify(body),
     }),
 
   update: (id: string, body: Partial<ServiceRequest>) =>
-    serverFetch<Service>(`/api/v1/services/${id}`, {
+    serverFetchData<Service>(`/api/v1/services/${id}`, {
       method: "PATCH",
       body: JSON.stringify(body),
     }),

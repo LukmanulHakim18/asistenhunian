@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
         hostname: "loremflickr.com",
         pathname: "/cache/**",
       },
+      {
+        protocol: "https",
+        hostname: "picsum.photos",
+      },
     ],
   },
 };

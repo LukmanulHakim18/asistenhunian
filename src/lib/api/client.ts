@@ -52,3 +52,22 @@ export async function serverFetch<T>(
   const token = (await cookies()).get("token")?.value;
   return apiFetch<T>(path, { ...options, token });
 }
+
+/** Unwraps BE responses wrapped in {"data": T}. */
+export async function apiFetchData<T>(
+  path: string,
+  options: RequestInit & { token?: string } = {},
+): Promise<T> {
+  const result = await apiFetch<{ data: T }>(path, options);
+  return result.data;
+}
+
+/** Server-side version of apiFetchData — reads JWT cookie and unwraps {"data": T}. */
+export async function serverFetchData<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const { cookies } = await import("next/headers");
+  const token = (await cookies()).get("token")?.value;
+  return apiFetchData<T>(path, { ...options, token });
+}

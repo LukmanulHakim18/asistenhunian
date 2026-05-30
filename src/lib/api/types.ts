@@ -81,7 +81,7 @@ export interface Service {
 }
 
 export interface ServiceWithCategory extends Service {
-  service_categories: ServiceCategory | null;
+  category: ServiceCategory | null;
 }
 
 export interface ServiceRequest {

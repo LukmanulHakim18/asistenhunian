@@ -27,6 +27,8 @@ export default async function OrderTrackPage({
   const order = await ordersApi.track(order_number).catch(() => null);
   if (!order) notFound();
 
+  const total = order.total ?? order.items?.reduce((s, i) => s + i.subtotal, 0) ?? 0;
+
   const showPayButton =
     order.payment_method === "transfer" &&
     order.payment_status === "unpaid" &&
@@ -126,7 +128,7 @@ export default async function OrderTrackPage({
                 ))}
                 <div className="flex justify-between font-bold pt-1 border-t">
                   <span>Total</span>
-                  <span>{formatCurrency(order.total)}</span>
+                  <span>{formatCurrency(total)}</span>
                 </div>
               </div>
             </>

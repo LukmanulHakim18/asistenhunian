@@ -1,6 +1,5 @@
 import { servicesApi } from "@/lib/api/services";
 import { ServiceCatalog } from "@/components/catalog/ServiceCatalog";
-import type { ServiceWithCategory } from "@/lib/api/types";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,12 +11,7 @@ export default async function HomePage() {
     servicesApi.listCategories().catch(() => []),
   ]);
 
-  const activeServices: ServiceWithCategory[] = services
-    .filter((s) => s.is_active)
-    .map((s) => ({
-      ...s,
-      service_categories: categories.find((c) => c.id === s.category_id) ?? null,
-    }));
+  const activeServices = services.filter((s) => s.is_active);
 
   return (
     <div>

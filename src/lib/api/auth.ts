@@ -17,12 +17,13 @@ export const authApi = {
     }),
 
   register: (body: RegisterRequest) =>
-    apiFetch<{ message: string }>("/api/v1/auth/register", {
+    apiFetch<{ message: string; token: string; user: User }>("/api/v1/auth/register", {
       method: "POST",
       body: JSON.stringify(body),
     }),
 
-  me: () => serverFetch<User>("/api/v1/auth/me"),
+  me: () =>
+    serverFetch<{ user: User }>("/api/v1/auth/me").then((r) => r.user),
 
   forgotPassword: (body: ForgotPasswordRequest) =>
     apiFetch<{ message: string }>("/api/v1/auth/forgot-password", {
