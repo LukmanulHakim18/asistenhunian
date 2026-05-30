@@ -163,10 +163,10 @@ BEGIN
   INSERT INTO profiles (id, full_name, phone, unit_number, role)
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
-    NEW.raw_user_meta_data->>'phone',
-    NEW.raw_user_meta_data->>'unit_number',
-    COALESCE((NEW.raw_user_meta_data->>'role')::user_role, 'customer')
+    COALESCE(NULLIF(NEW.raw_user_meta_data->>'full_name', ''), NEW.email),
+    NULLIF(NEW.raw_user_meta_data->>'phone', ''),
+    NULLIF(NEW.raw_user_meta_data->>'unit_number', ''),
+    COALESCE(NULLIF(NEW.raw_user_meta_data->>'role', '')::user_role, 'customer')
   );
   RETURN NEW;
 END;

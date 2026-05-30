@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { apiFetch, ApiError } from "@/lib/api/client";
+import type { CreateOrderRequest, CreateOrderResponse, PaymentMethod, Service, User } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +19,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
-import type { Service } from "@/types/database";
 
 interface OrderItem {
   service: Service;
@@ -38,20 +38,15 @@ export function OrderForm({ allServices }: OrderFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Customer fields
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [unitNumber, setUnitNumber] = useState("");
   const [requestedDate, setRequestedDate] = useState("");
   const [preferredTimeNote, setPreferredTimeNote] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "transfer">(
-    "cash"
-  );
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
 
-  const supabase = createClient();
-
-  // Parse items from URL and pre-fill from user profile
+  // Pre-fill dari profil jika user sudah login
   useEffect(() => {
     const itemsParam = searchParams.get("items");
     if (itemsParam) {
@@ -64,29 +59,22 @@ export function OrderForm({ allServices }: OrderFormProps) {
       setItems(parsed);
     }
 
-    // Pre-fill if logged in
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) return;
-      supabase
-        .from("profiles")
-        .select("full_name, phone, unit_number")
-        .eq("id", data.user.id)
-        .returns<{ full_name: string; phone: string | null; unit_number: string | null }[]>()
-        .single()
-        .then(({ data: profile }) => {
-          if (!profile) return;
-          setCustomerName(profile.full_name ?? "");
-          setCustomerPhone(profile.phone ?? "");
-          setUnitNumber(profile.unit_number ?? "");
-          setCustomerEmail(data.user?.email ?? "");
-        });
-    });
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? (res.json() as Promise<User>) : null))
+      .then((user) => {
+        if (!user) return;
+        setCustomerName(user.full_name ?? "");
+        setCustomerPhone(user.phone ?? "");
+        setUnitNumber(user.unit_number ?? "");
+        setCustomerEmail(user.email ?? "");
+      })
+      .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const subtotal = items.reduce(
     (sum, item) => sum + item.service.price * item.quantity,
-    0
+    0,
   );
 
   const updateQuantity = (serviceId: string, delta: number) => {
@@ -95,9 +83,9 @@ export function OrderForm({ allServices }: OrderFormProps) {
         .map((item) =>
           item.service.id === serviceId
             ? { ...item, quantity: item.quantity + delta }
-            : item
+            : item,
         )
-        .filter((item) => item.quantity > 0)
+        .filter((item) => item.quantity > 0),
     );
   };
 
@@ -106,7 +94,7 @@ export function OrderForm({ allServices }: OrderFormProps) {
       const existing = prev.find((i) => i.service.id === service.id);
       if (existing) {
         return prev.map((i) =>
-          i.service.id === service.id ? { ...i, quantity: i.quantity + 1 } : i
+          i.service.id === service.id ? { ...i, quantity: i.quantity + 1 } : i,
         );
       }
       return [...prev, { service, quantity: 1 }];
@@ -121,42 +109,31 @@ export function OrderForm({ allServices }: OrderFormProps) {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/orders", {
+      const payload: CreateOrderRequest = {
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
+        unit_number: unitNumber,
+        requested_date: requestedDate,
+        payment_method: paymentMethod,
+        items: items.map((i) => ({ service_id: i.service.id, quantity: i.quantity })),
+      };
+      if (preferredTimeNote) payload.preferred_time_note = preferredTimeNote;
+
+      const result = await apiFetch<CreateOrderResponse>("/api/v1/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerName,
-          customerEmail,
-          customerPhone,
-          unitNumber,
-          requestedDate,
-          preferredTimeNote,
-          paymentMethod,
-          items: items.map((i) => ({
-            serviceId: i.service.id,
-            serviceName: i.service.name,
-            servicePrice: i.service.price,
-            quantity: i.quantity,
-          })),
-        }),
+        body: JSON.stringify(payload),
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        toast.error(result.error ?? "Gagal membuat order");
-        setLoading(false);
-        return;
-      }
-
-      router.push(`/order/${result.orderId}/success`);
-    } catch {
-      toast.error("Terjadi kesalahan, coba lagi");
+      router.push(`/order/${result.order_number}/success`);
+    } catch (err) {
+      const message =
+        err instanceof ApiError ? err.message : "Terjadi kesalahan, coba lagi";
+      toast.error(message);
       setLoading(false);
     }
   };
 
-  // Minimum date = tomorrow
   const minDate = new Date();
   minDate.setDate(minDate.getDate() + 1);
   const minDateStr = minDate.toISOString().split("T")[0];
@@ -172,8 +149,8 @@ export function OrderForm({ allServices }: OrderFormProps) {
                 step === s
                   ? "bg-primary text-primary-foreground"
                   : step > s
-                  ? "bg-green-500 text-white"
-                  : "bg-muted text-muted-foreground"
+                    ? "bg-green-500 text-white"
+                    : "bg-muted text-muted-foreground"
               }`}
             >
               {step > s ? "✓" : s}
@@ -199,7 +176,6 @@ export function OrderForm({ allServices }: OrderFormProps) {
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">Pilih Layanan</h2>
 
-          {/* Selected items */}
           {items.length > 0 && (
             <Card>
               <CardHeader>
@@ -215,23 +191,9 @@ export function OrderForm({ allServices }: OrderFormProps) {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateQuantity(item.service.id, -1)}
-                      >
-                        −
-                      </Button>
-                      <span className="w-6 text-center font-semibold">
-                        {item.quantity}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateQuantity(item.service.id, 1)}
-                      >
-                        +
-                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => updateQuantity(item.service.id, -1)}>−</Button>
+                      <span className="w-6 text-center font-semibold">{item.quantity}</span>
+                      <Button variant="outline" size="sm" onClick={() => updateQuantity(item.service.id, 1)}>+</Button>
                     </div>
                   </div>
                 ))}
@@ -244,7 +206,6 @@ export function OrderForm({ allServices }: OrderFormProps) {
             </Card>
           )}
 
-          {/* Add more services */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Tambah Layanan Lain</CardTitle>
@@ -256,9 +217,7 @@ export function OrderForm({ allServices }: OrderFormProps) {
                   <div key={service.id} className="flex items-center justify-between py-2">
                     <div>
                       <p className="font-medium">{service.name}</p>
-                      <p className="text-sm text-primary font-semibold">
-                        {formatCurrency(service.price)}
-                      </p>
+                      <p className="text-sm text-primary font-semibold">{formatCurrency(service.price)}</p>
                     </div>
                     <Button variant="outline" size="sm" onClick={() => addService(service)}>
                       + Tambah
@@ -268,11 +227,7 @@ export function OrderForm({ allServices }: OrderFormProps) {
             </CardContent>
           </Card>
 
-          <Button
-            className="w-full"
-            disabled={items.length === 0}
-            onClick={() => setStep(2)}
-          >
+          <Button className="w-full" disabled={items.length === 0} onClick={() => setStep(2)}>
             Lanjut →
           </Button>
         </div>
@@ -285,103 +240,47 @@ export function OrderForm({ allServices }: OrderFormProps) {
           <div className="grid grid-cols-1 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">Nama Lengkap *</Label>
-              <Input
-                id="name"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Budi Santoso"
-                required
-              />
+              <Input id="name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Budi Santoso" required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="unit">Nomor Unit *</Label>
-              <Input
-                id="unit"
-                value={unitNumber}
-                onChange={(e) => setUnitNumber(e.target.value)}
-                placeholder="A-101"
-                required
-              />
+              <Input id="unit" value={unitNumber} onChange={(e) => setUnitNumber(e.target.value)} placeholder="A-101" required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Nomor WhatsApp *</Label>
-              <Input
-                id="phone"
-                type="tel"
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder="08123456789"
-                required
-              />
+              <Input id="phone" type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="08123456789" required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email *</Label>
-              <Input
-                id="email"
-                type="email"
-                value={customerEmail}
-                onChange={(e) => setCustomerEmail(e.target.value)}
-                placeholder="budi@email.com"
-                required
-              />
+              <Input id="email" type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="budi@email.com" required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="date">Tanggal yang Diinginkan *</Label>
-              <Input
-                id="date"
-                type="date"
-                min={minDateStr}
-                value={requestedDate}
-                onChange={(e) => setRequestedDate(e.target.value)}
-                required
-              />
+              <Input id="date" type="date" min={minDateStr} value={requestedDate} onChange={(e) => setRequestedDate(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="timeNote">Preferensi Waktu (opsional)</Label>
-              <Textarea
-                id="timeNote"
-                value={preferredTimeNote}
-                onChange={(e) => setPreferredTimeNote(e.target.value)}
-                placeholder="Misal: pagi jam 09.00-11.00, atau siang setelah 13.00"
-                rows={2}
-              />
+              <Textarea id="timeNote" value={preferredTimeNote} onChange={(e) => setPreferredTimeNote(e.target.value)} placeholder="Misal: pagi jam 09.00-11.00, atau siang setelah 13.00" rows={2} />
             </div>
             <div className="space-y-2">
               <Label>Metode Pembayaran *</Label>
-              <Select
-                value={paymentMethod}
-                onValueChange={(v) =>
-                  setPaymentMethod(String(v) as "cash" | "transfer")
-                }
-              >
+              <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cash">
-                    Cash — Bayar langsung ke OB saat selesai
-                  </SelectItem>
-                  <SelectItem value="transfer">
-                    Transfer — Bayar via Midtrans (QRIS, VA, Kartu)
-                  </SelectItem>
+                  <SelectItem value="cash">Cash — Bayar langsung ke OB saat selesai</SelectItem>
+                  <SelectItem value="transfer">Transfer — Bayar via Midtrans (QRIS, VA, Kartu)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
           <div className="flex gap-3">
-            <Button variant="outline" className="flex-1" onClick={() => setStep(1)}>
-              ← Kembali
-            </Button>
+            <Button variant="outline" className="flex-1" onClick={() => setStep(1)}>← Kembali</Button>
             <Button
               className="flex-1"
-              disabled={
-                !customerName ||
-                !customerEmail ||
-                !customerPhone ||
-                !unitNumber ||
-                !requestedDate
-              }
+              disabled={!customerName || !customerEmail || !customerPhone || !unitNumber || !requestedDate}
               onClick={() => setStep(3)}
             >
               Review Order →
@@ -402,12 +301,8 @@ export function OrderForm({ allServices }: OrderFormProps) {
             <CardContent className="space-y-2">
               {items.map((item) => (
                 <div key={item.service.id} className="flex justify-between text-sm">
-                  <span>
-                    {item.service.name} × {item.quantity}
-                  </span>
-                  <span className="font-medium">
-                    {formatCurrency(item.service.price * item.quantity)}
-                  </span>
+                  <span>{item.service.name} × {item.quantity}</span>
+                  <span className="font-medium">{formatCurrency(item.service.price * item.quantity)}</span>
                 </div>
               ))}
               <Separator />
@@ -441,22 +336,14 @@ export function OrderForm({ allServices }: OrderFormProps) {
                   </>
                 )}
                 <span className="text-muted-foreground">Pembayaran</span>
-                <span className="font-medium capitalize">
-                  {paymentMethod === "cash" ? "Cash ke OB" : "Transfer Online"}
-                </span>
+                <span className="font-medium">{paymentMethod === "cash" ? "Cash ke OB" : "Transfer Online"}</span>
               </div>
             </CardContent>
           </Card>
 
           <div className="flex gap-3">
-            <Button variant="outline" className="flex-1" onClick={() => setStep(2)}>
-              ← Kembali
-            </Button>
-            <Button
-              className="flex-1"
-              disabled={loading}
-              onClick={handleSubmitOrder}
-            >
+            <Button variant="outline" className="flex-1" onClick={() => setStep(2)}>← Kembali</Button>
+            <Button className="flex-1" disabled={loading} onClick={handleSubmitOrder}>
               {loading ? "Memproses..." : "Buat Order ✓"}
             </Button>
           </div>
