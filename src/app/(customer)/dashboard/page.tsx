@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+import { ordersApi } from "@/lib/api/orders";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,24 +7,20 @@ import { OrderStatusBadge } from "@/components/ob/OrderStatusBadge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { Order } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
+const PAYMENT_METHOD_LABEL: Record<string, string> = {
+  cash: "Cash ke OB",
+  transfer: "Transfer Online",
+  qris: "QRIS",
+};
+
 export default async function CustomerDashboardPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const cookieStore = await cookies();
+  if (!cookieStore.get("token")?.value) redirect("/login?next=/dashboard");
 
-  if (!user) redirect("/login?redirect=/dashboard");
-
-  const { data: orders } = await supabase
-    .from("orders")
-    .select("id, order_number, status, total, requested_date, created_at, payment_status, payment_method")
-    .eq("customer_email", user.email!)
-    .order("created_at", { ascending: false })
-    .returns<Pick<Order, "id" | "order_number" | "status" | "total" | "requested_date" | "created_at" | "payment_status" | "payment_method">[]>();
+  const orders = await ordersApi.list().catch(() => []);
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -34,7 +31,7 @@ export default async function CustomerDashboardPage() {
         </Link>
       </div>
 
-      {!orders || orders.length === 0 ? (
+      {orders.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground mb-4">Belum ada order.</p>
@@ -56,7 +53,7 @@ export default async function CustomerDashboardPage() {
                     </p>
                     <p className="text-sm font-semibold mt-1">{formatCurrency(order.total)}</p>
                     <p className="text-xs text-muted-foreground">
-                      {order.payment_method === "cash" ? "Cash ke OB" : "Transfer Online"}
+                      {PAYMENT_METHOD_LABEL[order.payment_method] ?? order.payment_method}
                       {" · "}
                       <span className={order.payment_status === "paid" ? "text-green-600" : "text-orange-600"}>
                         {order.payment_status === "paid" ? "Lunas" : "Belum dibayar"}
@@ -66,7 +63,7 @@ export default async function CustomerDashboardPage() {
                   <div className="flex flex-col items-end gap-2 shrink-0">
                     <OrderStatusBadge status={order.status} />
                     <Link
-                      href={`/order/${order.id}/track`}
+                      href={`/order/${order.order_number}/track`}
                       className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
                     >
                       Detail

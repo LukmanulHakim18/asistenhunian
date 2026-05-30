@@ -1,74 +1,72 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { updateProfileAction, changePasswordAction } from "@/lib/actions/profile";
+import { ApiError } from "@/lib/api/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
-import type { Profile } from "@/types/database";
+import type { User } from "@/lib/api/types";
 
-type ProfileRow = Pick<Profile, "full_name" | "phone" | "unit_number">;
+type Message = { type: "success" | "error"; text: string };
 
 export default function ProfilePage() {
-  const supabase = createClient();
-  const router = useRouter();
-  const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-
+  const [message, setMessage] = useState<Message | null>(null);
   const [form, setForm] = useState({ full_name: "", phone: "", unit_number: "" });
 
+  // Change password state
+  const [pwForm, setPwForm] = useState({ old_password: "", new_password: "" });
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMessage, setPwMessage] = useState<Message | null>(null);
+
   useEffect(() => {
-    async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/login"); return; }
-
-      const { data } = await supabase
-        .from("profiles")
-        .select("full_name, phone, unit_number")
-        .eq("id", user.id)
-        .returns<ProfileRow[]>()
-        .single();
-
-      if (data) {
-        setProfile(data);
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? (res.json() as Promise<User>) : null))
+      .then((u) => {
+        if (!u) return;
+        setUser(u);
         setForm({
-          full_name: data.full_name ?? "",
-          phone: data.phone ?? "",
-          unit_number: data.unit_number ?? "",
+          full_name: u.full_name ?? "",
+          phone: u.phone ?? "",
+          unit_number: u.unit_number ?? "",
         });
-      }
-      setLoading(false);
-    }
-    load();
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setMessage(null);
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        full_name: form.full_name,
-        phone: form.phone,
-        unit_number: form.unit_number,
-      } as object)
-      .eq("id", user.id);
-
-    setSaving(false);
-    if (error) {
-      setMessage({ type: "error", text: "Gagal menyimpan profil" });
-    } else {
+    try {
+      await updateProfileAction({ ...form });
       setMessage({ type: "success", text: "Profil berhasil diperbarui" });
+    } catch (err) {
+      const text = err instanceof ApiError ? err.message : "Gagal menyimpan profil";
+      setMessage({ type: "error", text });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setPwSaving(true);
+    setPwMessage(null);
+    try {
+      await changePasswordAction(pwForm);
+      setPwMessage({ type: "success", text: "Password berhasil diubah" });
+      setPwForm({ old_password: "", new_password: "" });
+    } catch (err) {
+      const text = err instanceof ApiError ? err.message : "Gagal mengubah password";
+      setPwMessage({ type: "error", text });
+    } finally {
+      setPwSaving(false);
     }
   }
 
@@ -81,8 +79,10 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Profil Saya</h1>
+    <div className="max-w-lg mx-auto space-y-6">
+      <h1 className="text-2xl font-bold">Profil Saya</h1>
+
+      {/* Profile form */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Informasi Akun</CardTitle>
@@ -128,6 +128,51 @@ export default function ProfilePage() {
           </form>
         </CardContent>
       </Card>
+
+      {/* Change password */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Ubah Password</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="old_password">Password Lama</Label>
+              <Input
+                id="old_password"
+                type="password"
+                value={pwForm.old_password}
+                onChange={(e) => setPwForm({ ...pwForm, old_password: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="new_password">Password Baru</Label>
+              <Input
+                id="new_password"
+                type="password"
+                value={pwForm.new_password}
+                onChange={(e) => setPwForm({ ...pwForm, new_password: e.target.value })}
+                minLength={8}
+                required
+              />
+            </div>
+            {pwMessage && (
+              <p className={`text-sm ${pwMessage.type === "success" ? "text-green-600" : "text-red-600"}`}>
+                {pwMessage.text}
+              </p>
+            )}
+            <Button type="submit" className="w-full" disabled={pwSaving}>
+              {pwSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {pwSaving ? "Menyimpan..." : "Ubah Password"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <p className="text-sm text-muted-foreground text-center">
+        Email: <strong>{user?.email}</strong>
+      </p>
     </div>
   );
 }
