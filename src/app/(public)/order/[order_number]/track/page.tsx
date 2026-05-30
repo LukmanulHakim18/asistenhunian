@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { ordersApi } from "@/lib/api/orders";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
@@ -7,13 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OrderStatusBadge } from "@/components/ob/OrderStatusBadge";
 import { Separator } from "@/components/ui/separator";
 import { PaymentButton } from "@/components/order/PaymentButton";
-import type { Order, OrderItem, OrderStatus, OrderStatusHistory } from "@/types/database";
+import type { OrderStatus } from "@/lib/api/types";
 import { CheckCircle, Clock, Loader, XCircle } from "lucide-react";
-
-type OrderWithDetails = Order & {
-  order_items: OrderItem[];
-  ob_profile: { full_name: string; phone: string | null } | null;
-};
 
 const STATUS_ICONS: Record<OrderStatus, React.ReactNode> = {
   pending: <Clock className="h-4 w-4 text-yellow-500" />,
@@ -26,31 +21,17 @@ const STATUS_ICONS: Record<OrderStatus, React.ReactNode> = {
 export default async function OrderTrackPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ order_number: string }>;
 }) {
-  const { id } = await params;
-  const supabase = await createClient();
-
-  const { data: order } = (await supabase
-    .from("orders")
-    .select("*, order_items(*), ob_profile:ob_id(full_name, phone)")
-    .eq("id", id)
-    .returns<OrderWithDetails[]>()
-    .single()) as { data: OrderWithDetails | null };
-
+  const { order_number } = await params;
+  const order = await ordersApi.track(order_number).catch(() => null);
   if (!order) notFound();
-
-  const { data: history } = await supabase
-    .from("order_status_history")
-    .select("*")
-    .eq("order_id", id)
-    .order("created_at", { ascending: true })
-    .returns<OrderStatusHistory[]>();
 
   const showPayButton =
     order.payment_method === "transfer" &&
     order.payment_status === "unpaid" &&
-    order.status !== "cancelled";
+    order.status !== "cancelled" &&
+    !!order.midtrans_payment_url;
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-2xl">
@@ -65,36 +46,38 @@ export default async function OrderTrackPage({
       </div>
 
       {/* Status Timeline */}
-      <Card className="mb-4">
-        <CardHeader>
-          <CardTitle className="text-base">Riwayat Status</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-0">
-            {history?.map((h, idx) => (
-              <div key={h.id} className="flex gap-3">
-                <div className="flex flex-col items-center">
-                  <div className="mt-0.5">{STATUS_ICONS[h.new_status]}</div>
-                  {idx < (history.length - 1) && (
-                    <div className="w-px flex-1 bg-border my-1" />
-                  )}
+      {order.status_history && order.status_history.length > 0 && (
+        <Card className="mb-4">
+          <CardHeader>
+            <CardTitle className="text-base">Riwayat Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-0">
+              {order.status_history.map((h, idx) => (
+                <div key={h.id} className="flex gap-3">
+                  <div className="flex flex-col items-center">
+                    <div className="mt-0.5">{STATUS_ICONS[h.new_status]}</div>
+                    {idx < (order.status_history!.length - 1) && (
+                      <div className="w-px flex-1 bg-border my-1" />
+                    )}
+                  </div>
+                  <div className="pb-4">
+                    <p className="font-medium text-sm">
+                      {ORDER_STATUS_LABEL[h.new_status]}
+                    </p>
+                    {h.notes && (
+                      <p className="text-sm text-muted-foreground">{h.notes}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {formatDateTime(h.created_at)}
+                    </p>
+                  </div>
                 </div>
-                <div className="pb-4">
-                  <p className="font-medium text-sm">
-                    {ORDER_STATUS_LABEL[h.new_status]}
-                  </p>
-                  {h.notes && (
-                    <p className="text-sm text-muted-foreground">{h.notes}</p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    {formatDateTime(h.created_at)}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Order Details */}
       <Card className="mb-4">
@@ -115,10 +98,10 @@ export default async function OrderTrackPage({
                 <span className="font-medium">{formatDateTime(order.confirmed_datetime)}</span>
               </>
             )}
-            {order.ob_profile && (
+            {order.ob && (
               <>
                 <span className="text-muted-foreground">OB Bertugas</span>
-                <span className="font-medium">{order.ob_profile.full_name}</span>
+                <span className="font-medium">{order.ob.full_name}</span>
               </>
             )}
             <span className="text-muted-foreground">Pembayaran</span>
@@ -131,27 +114,28 @@ export default async function OrderTrackPage({
             </span>
           </div>
 
-          <Separator />
-
-          <div className="space-y-2 text-sm">
-            {order.order_items?.map((item) => (
-              <div key={item.id} className="flex justify-between">
-                <span>
-                  {item.service_name} × {item.quantity}
-                </span>
-                <span className="font-medium">{formatCurrency(item.subtotal)}</span>
+          {order.items && order.items.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-2 text-sm">
+                {order.items.map((item) => (
+                  <div key={item.id} className="flex justify-between">
+                    <span>{item.service_name} × {item.quantity}</span>
+                    <span className="font-medium">{formatCurrency(item.subtotal)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between font-bold pt-1 border-t">
+                  <span>Total</span>
+                  <span>{formatCurrency(order.total)}</span>
+                </div>
               </div>
-            ))}
-            <div className="flex justify-between font-bold pt-1 border-t">
-              <span>Total</span>
-              <span>{formatCurrency(order.total)}</span>
-            </div>
-          </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
       {/* Payment Button */}
-      {showPayButton && <PaymentButton orderId={order.id} />}
+      {showPayButton && <PaymentButton paymentUrl={order.midtrans_payment_url!} />}
 
       <div className="flex gap-3 mt-4">
         <Link

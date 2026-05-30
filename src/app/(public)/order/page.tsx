@@ -1,21 +1,17 @@
 import { Suspense } from "react";
-import { createClient } from "@/lib/supabase/server";
-import { OrderForm } from "@/components/order/OrderForm";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { servicesApi } from "@/lib/api/services";
+import { OrderForm } from "@/components/order/OrderForm";
 
 async function OrderPageContent() {
-  const supabase = await createClient();
+  const cookieStore = await cookies();
+  if (!cookieStore.get("token")?.value) redirect("/login?next=/order");
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login?next=/order");
+  const services = await servicesApi.list().catch(() => []);
+  const activeServices = services.filter((s) => s.is_active);
 
-  const { data: services } = await supabase
-    .from("services")
-    .select("*")
-    .eq("is_active", true)
-    .order("sort_order");
-
-  return <OrderForm allServices={services ?? []} />;
+  return <OrderForm allServices={activeServices} />;
 }
 
 export default function OrderPage() {

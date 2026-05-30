@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ServiceCard } from "./ServiceCard";
 import { formatCurrency } from "@/lib/utils";
-import type { ServiceWithCategory, ServiceCategory } from "@/types/database";
+import type { ServiceWithCategory, ServiceCategory } from "@/lib/api/types";
 import { ShoppingCart } from "lucide-react";
 
 interface Props {

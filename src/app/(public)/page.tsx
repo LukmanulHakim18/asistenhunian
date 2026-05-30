@@ -1,25 +1,23 @@
-import { createClient } from "@/lib/supabase/server";
+import { servicesApi } from "@/lib/api/services";
 import { ServiceCatalog } from "@/components/catalog/ServiceCatalog";
-import type { ServiceWithCategory } from "@/types/database";
+import type { ServiceWithCategory } from "@/lib/api/types";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Sparkles, ShieldCheck, Clock } from "lucide-react";
 
 export default async function HomePage() {
-  const supabase = await createClient();
-
-  const [{ data: services }, { data: categories }] = await Promise.all([
-    supabase
-      .from("services")
-      .select("*, service_categories(*)")
-      .eq("is_active", true)
-      .order("sort_order"),
-    supabase.from("service_categories").select("*").order("sort_order"),
+  const [services, categories] = await Promise.all([
+    servicesApi.list().catch(() => []),
+    servicesApi.listCategories().catch(() => []),
   ]);
 
-  const typedServices = (services ?? []) as ServiceWithCategory[];
-  const typedCategories = categories ?? [];
+  const activeServices: ServiceWithCategory[] = services
+    .filter((s) => s.is_active)
+    .map((s) => ({
+      ...s,
+      service_categories: categories.find((c) => c.id === s.category_id) ?? null,
+    }));
 
   return (
     <div>
@@ -107,15 +105,15 @@ export default async function HomePage() {
             Pilih satu atau beberapa layanan sesuai kebutuhan hunian Anda
           </p>
         </div>
-        {typedServices.length === 0 ? (
+        {activeServices.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground">
             <p className="text-4xl mb-4">🧹</p>
             <p>Layanan akan segera tersedia.</p>
           </div>
         ) : (
           <ServiceCatalog
-            services={typedServices}
-            categories={typedCategories}
+            services={activeServices}
+            categories={categories}
           />
         )}
       </section>
