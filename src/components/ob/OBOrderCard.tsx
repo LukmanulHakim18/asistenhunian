@@ -1,73 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { OrderStatusBadge } from "./OrderStatusBadge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
-import type { OrderStatus, OrderItem } from "@/types/database";
-
-interface OrderCardData {
-  id: string;
-  order_number: string;
-  customer_name: string;
-  customer_phone: string;
-  unit_number: string;
-  requested_date: string;
-  preferred_time_note: string | null;
-  status: OrderStatus;
-  payment_method: string;
-  payment_status: string;
-  total: number;
-  customer_notes: string | null;
-  ob_notes: string | null;
-  order_items: OrderItem[];
-}
+import { updateOrderStatusAction } from "@/lib/actions/orders";
+import type { Order, OrderStatus } from "@/lib/api/types";
 
 interface Props {
-  order: OrderCardData;
+  order: Order;
   compact?: boolean;
 }
 
 export function OBOrderCard({ order, compact = false }: Props) {
-  const [loading, setLoading] = useState(false);
-  const [confirmedDatetime, setConfirmedDatetime] = useState("");
+  const [isPending, startTransition] = useTransition();
   const [obNotes, setObNotes] = useState(order.ob_notes ?? "");
   const [showConfirmForm, setShowConfirmForm] = useState(false);
   const router = useRouter();
 
-  const updateStatus = async (newStatus: OrderStatus, extra?: object) => {
-    setLoading(true);
-    const res = await fetch(`/api/orders/${order.id}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus, obNotes, ...extra }),
+  const updateStatus = (newStatus: OrderStatus) => {
+    startTransition(async () => {
+      try {
+        await updateOrderStatusAction(order.id, newStatus, obNotes || undefined);
+        toast.success(`Status diperbarui: ${newStatus}`);
+        router.refresh();
+      } catch {
+        toast.error("Gagal update status");
+      }
     });
-
-    const data = await res.json();
-    if (!res.ok) {
-      toast.error(data.error ?? "Gagal update status");
-    } else {
-      toast.success(`Status diperbarui: ${newStatus}`);
-      router.refresh();
-    }
-    setLoading(false);
-  };
-
-  const handleConfirm = () => {
-    if (!confirmedDatetime) {
-      toast.error("Masukkan waktu pelaksanaan yang pasti");
-      return;
-    }
-    const isoDatetime = new Date(confirmedDatetime).toISOString();
-    updateStatus("confirmed", { confirmedDatetime: isoDatetime });
-    setShowConfirmForm(false);
   };
 
   return (
@@ -95,18 +61,25 @@ export function OBOrderCard({ order, compact = false }: Props) {
               </>
             )}
             <span className="text-muted-foreground">WA</span>
-            <a href={`https://wa.me/62${order.customer_phone.replace(/^0/, '')}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+            <a
+              href={`https://wa.me/62${order.customer_phone.replace(/^0/, "")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
               {order.customer_phone}
             </a>
             <span className="text-muted-foreground">Pembayaran</span>
-            <span className="capitalize">{order.payment_method === "cash" ? "Cash" : "Transfer"}</span>
+            <span className="capitalize">
+              {order.payment_method === "cash" ? "Cash" : "Transfer"}
+            </span>
           </div>
 
-          {order.order_items?.length > 0 && (
+          {order.items && order.items.length > 0 && (
             <>
               <Separator />
               <div className="space-y-1">
-                {order.order_items.map((item) => (
+                {order.items.map((item) => (
                   <div key={item.id} className="flex justify-between">
                     <span>{item.service_name} × {item.quantity}</span>
                     <span className="font-medium">{formatCurrency(item.subtotal)}</span>
@@ -130,14 +103,6 @@ export function OBOrderCard({ order, compact = false }: Props) {
           {showConfirmForm && order.status === "pending" && (
             <div className="border rounded p-3 space-y-3 bg-blue-50">
               <div className="space-y-2">
-                <Label>Waktu Pelaksanaan Pasti</Label>
-                <Input
-                  type="datetime-local"
-                  value={confirmedDatetime}
-                  onChange={(e) => setConfirmedDatetime(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
                 <Label>Catatan untuk Customer (opsional)</Label>
                 <Textarea
                   value={obNotes}
@@ -147,14 +112,10 @@ export function OBOrderCard({ order, compact = false }: Props) {
                 />
               </div>
               <div className="flex gap-2">
-                <Button size="sm" onClick={handleConfirm} disabled={loading}>
+                <Button size="sm" onClick={() => { updateStatus("confirmed"); setShowConfirmForm(false); }} disabled={isPending}>
                   Konfirmasi Jadwal
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowConfirmForm(false)}
-                >
+                <Button size="sm" variant="outline" onClick={() => setShowConfirmForm(false)}>
                   Batal
                 </Button>
               </div>
@@ -173,38 +134,21 @@ export function OBOrderCard({ order, compact = false }: Props) {
       <CardFooter className="gap-2 flex-wrap">
         {order.status === "pending" && (
           <>
-            <Button
-              size="sm"
-              onClick={() => setShowConfirmForm(!showConfirmForm)}
-              disabled={loading}
-            >
+            <Button size="sm" onClick={() => setShowConfirmForm(!showConfirmForm)} disabled={isPending}>
               Konfirmasi Order
             </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={() => updateStatus("cancelled")}
-              disabled={loading}
-            >
+            <Button size="sm" variant="destructive" onClick={() => updateStatus("cancelled")} disabled={isPending}>
               Tolak
             </Button>
           </>
         )}
         {order.status === "confirmed" && (
-          <Button
-            size="sm"
-            onClick={() => updateStatus("in_progress")}
-            disabled={loading}
-          >
+          <Button size="sm" onClick={() => updateStatus("in_progress")} disabled={isPending}>
             Mulai Kerjakan
           </Button>
         )}
         {order.status === "in_progress" && (
-          <Button
-            size="sm"
-            onClick={() => updateStatus("completed")}
-            disabled={loading}
-          >
+          <Button size="sm" onClick={() => updateStatus("completed")} disabled={isPending}>
             Tandai Selesai ✓
           </Button>
         )}

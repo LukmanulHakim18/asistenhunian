@@ -1,37 +1,18 @@
-import { createClient } from "@/lib/supabase/server";
+import { ordersApi } from "@/lib/api/orders";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Banknote, CreditCard, TrendingUp } from "lucide-react";
 
-interface CompletedOrder {
-  id: string;
-  order_number: string;
-  customer_name: string;
-  unit_number: string;
-  requested_date: string;
-  total: number;
-  payment_method: string;
-  payment_status: string;
-}
+export const dynamic = "force-dynamic";
 
 export default async function OBEarningsPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  const { data: orders } = await supabase
-    .from("orders")
-    .select("id, order_number, customer_name, unit_number, requested_date, total, payment_method, payment_status")
-    .eq("status", "completed")
-    .eq("ob_id", user?.id ?? "")
-    .order("requested_date", { ascending: false })
-    .returns<CompletedOrder[]>();
-
-  const completedOrders = orders ?? [];
+  const orders = await ordersApi.list().catch(() => []);
+  const completedOrders = orders.filter((o) => o.status === "completed");
 
   const totalEarnings = completedOrders.reduce((sum, o) => sum + o.total, 0);
   const cashOrders = completedOrders.filter((o) => o.payment_method === "cash");
-  const transferOrders = completedOrders.filter((o) => o.payment_method === "transfer");
+  const transferOrders = completedOrders.filter((o) => o.payment_method !== "cash");
   const cashTotal = cashOrders.reduce((sum, o) => sum + o.total, 0);
   const transferTotal = transferOrders.reduce((sum, o) => sum + o.total, 0);
 
@@ -39,7 +20,9 @@ export default async function OBEarningsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Penghasilan Saya</h1>
-        <p className="text-muted-foreground">Ringkasan dari {completedOrders.length} order selesai</p>
+        <p className="text-muted-foreground">
+          Ringkasan dari {completedOrders.length} order selesai
+        </p>
       </div>
 
       {/* Summary Cards */}
@@ -66,7 +49,9 @@ export default async function OBEarningsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{formatCurrency(cashTotal)}</p>
-            <p className="text-xs text-muted-foreground mt-1">{cashOrders.length} order · uang diterima langsung</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {cashOrders.length} order · uang diterima langsung
+            </p>
           </CardContent>
         </Card>
 
@@ -102,15 +87,26 @@ export default async function OBEarningsPage() {
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs text-muted-foreground">{order.order_number}</span>
-                    <Badge variant={order.payment_method === "cash" ? "secondary" : "outline"} className="text-xs">
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {order.order_number}
+                    </span>
+                    <Badge
+                      variant={order.payment_method === "cash" ? "secondary" : "outline"}
+                      className="text-xs"
+                    >
                       {order.payment_method === "cash" ? "Cash" : "Transfer"}
                     </Badge>
                   </div>
-                  <p className="font-medium text-sm mt-0.5 truncate">{order.customer_name} — Unit {order.unit_number}</p>
-                  <p className="text-xs text-muted-foreground">{formatDate(order.requested_date)}</p>
+                  <p className="font-medium text-sm mt-0.5 truncate">
+                    {order.customer_name} — Unit {order.unit_number}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatDate(order.requested_date)}
+                  </p>
                 </div>
-                <p className="font-bold text-primary ml-4 shrink-0">{formatCurrency(order.total)}</p>
+                <p className="font-bold text-primary ml-4 shrink-0">
+                  {formatCurrency(order.total)}
+                </p>
               </div>
             ))}
           </div>

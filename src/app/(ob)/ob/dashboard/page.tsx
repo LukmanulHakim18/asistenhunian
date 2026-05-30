@@ -1,62 +1,26 @@
-import { createClient } from "@/lib/supabase/server";
+import { ordersApi } from "@/lib/api/orders";
 import { OBOrderCard } from "@/components/ob/OBOrderCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { OrderItem, OrderStatus } from "@/types/database";
 
-interface OrderRow {
-  id: string;
-  order_number: string;
-  customer_name: string;
-  customer_phone: string;
-  unit_number: string;
-  requested_date: string;
-  preferred_time_note: string | null;
-  status: OrderStatus;
-  payment_method: string;
-  payment_status: string;
-  total: number;
-  customer_notes: string | null;
-  ob_notes: string | null;
-  order_items: OrderItem[];
-}
+export const dynamic = "force-dynamic";
 
 export default async function OBDashboardPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const orders = await ordersApi.list().catch(() => []);
 
   const today = new Date().toISOString().split("T")[0];
+  const activeStatuses = ["pending", "confirmed", "in_progress"] as const;
 
-  // Today's orders for this OB
-  const { data: todayOrders } = await supabase
-    .from("orders")
-    .select("*, order_items(*)")
-    .eq("requested_date", today)
-    .in("status", ["pending", "confirmed", "in_progress"])
-    .returns<OrderRow[]>();
+  const todayOrders = orders.filter(
+    (o) => o.requested_date === today && activeStatuses.includes(o.status as typeof activeStatuses[number]),
+  );
 
-  // Pending orders (unassigned or assigned to this OB)
-  const { data: pendingOrders } = await supabase
-    .from("orders")
-    .select("*, order_items(*)")
-    .eq("status", "pending")
-    .order("requested_date", { ascending: true })
-    .limit(5)
-    .returns<OrderRow[]>();
+  const pendingOrders = orders
+    .filter((o) => o.status === "pending")
+    .sort((a, b) => a.requested_date.localeCompare(b.requested_date))
+    .slice(0, 5);
 
-  // Stats
-  const { count: completedCount } = await supabase
-    .from("orders")
-    .select("*", { count: "exact", head: true })
-    .eq("ob_id", user?.id ?? "")
-    .eq("status", "completed");
-
-  const { count: confirmedCount } = await supabase
-    .from("orders")
-    .select("*", { count: "exact", head: true })
-    .eq("ob_id", user?.id ?? "")
-    .eq("status", "confirmed");
+  const completedCount = orders.filter((o) => o.status === "completed").length;
+  const confirmedCount = orders.filter((o) => o.status === "confirmed").length;
 
   return (
     <div className="space-y-6">
@@ -69,32 +33,26 @@ export default async function OBDashboardPage() {
       <div className="grid grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Order Hari Ini
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Order Hari Ini</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{todayOrders?.length ?? 0}</p>
+            <p className="text-2xl font-bold">{todayOrders.length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Dijadwalkan
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Dijadwalkan</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{confirmedCount ?? 0}</p>
+            <p className="text-2xl font-bold">{confirmedCount}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Selesai Total
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Selesai Total</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{completedCount ?? 0}</p>
+            <p className="text-2xl font-bold">{completedCount}</p>
           </CardContent>
         </Card>
       </div>
@@ -102,11 +60,11 @@ export default async function OBDashboardPage() {
       {/* Today's Orders */}
       <div>
         <h2 className="text-lg font-semibold mb-3">Order Hari Ini</h2>
-        {todayOrders?.length === 0 ? (
+        {todayOrders.length === 0 ? (
           <p className="text-muted-foreground">Tidak ada order untuk hari ini.</p>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
-            {todayOrders?.map((order) => (
+            {todayOrders.map((order) => (
               <OBOrderCard key={order.id} order={order} />
             ))}
           </div>
@@ -116,11 +74,11 @@ export default async function OBDashboardPage() {
       {/* Pending Orders */}
       <div>
         <h2 className="text-lg font-semibold mb-3">Order Menunggu Konfirmasi</h2>
-        {pendingOrders?.length === 0 ? (
+        {pendingOrders.length === 0 ? (
           <p className="text-muted-foreground">Tidak ada order yang menunggu.</p>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
-            {pendingOrders?.map((order) => (
+            {pendingOrders.map((order) => (
               <OBOrderCard key={order.id} order={order} />
             ))}
           </div>
