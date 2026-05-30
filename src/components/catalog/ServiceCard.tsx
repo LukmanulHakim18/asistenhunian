@@ -3,7 +3,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 import { ServicePlaceholder } from "./ServicePlaceholder";
-import type { ServiceWithCategory } from "@/types/database";
+import type { ServiceWithCategory } from "@/lib/api/types";
 
 interface Props {
   service: ServiceWithCategory;

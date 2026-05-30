@@ -2,7 +2,7 @@ import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { format, parseISO } from "date-fns"
 import { id as localeId } from "date-fns/locale"
-import type { OrderStatus } from "@/types/database"
+import type { OrderStatus } from "@/lib/api/types"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))

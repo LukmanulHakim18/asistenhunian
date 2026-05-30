@@ -1,5 +1,5 @@
 import { cn, ORDER_STATUS_LABEL, ORDER_STATUS_COLOR } from "@/lib/utils";
-import type { OrderStatus } from "@/types/database";
+import type { OrderStatus } from "@/lib/api/types";
 
 export function OrderStatusBadge({ status }: { status: OrderStatus }) {
   return (
