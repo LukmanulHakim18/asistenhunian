@@ -28,27 +28,32 @@ jobs:
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
 
+      - name: Test SSH connection
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -p ${{ secrets.SSH_PORT }} \
+            -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "echo SSH OK && whoami"
+
       - name: Rsync standalone build to VPS
         run: |
-          SSH_OPTS="-i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }}"
+          SSH_OPTS="-i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }} -o StrictHostKeyChecking=no"
 
-          # Standalone server (includes minimal node_modules)
           rsync -az --delete \
             -e "ssh $SSH_OPTS" \
             .next/standalone/ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.DEPLOY_DIR }}/standalone/
 
-          # Static assets (CSS, JS, images)
           rsync -az --delete \
             -e "ssh $SSH_OPTS" \
             .next/static/ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.DEPLOY_DIR }}/standalone/.next/static/
 
-          # Public directory
           rsync -az --delete \
             -e "ssh $SSH_OPTS" \
             public/ \
