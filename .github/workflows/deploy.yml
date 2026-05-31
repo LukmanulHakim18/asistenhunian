@@ -8,8 +8,8 @@ env:
   DEPLOY_DIR: /home/slnexpre/asistenhunian/asisten-hunian-fe
 
 jobs:
-  build-and-deploy:
-    name: Build & Deploy
+  build:
+    name: Build
     runs-on: ubuntu-latest
 
     steps:
@@ -27,10 +27,28 @@ jobs:
 
       - name: Package standalone build
         run: |
-          # Salin static & public ke dalam standalone sebelum dipack
           cp -r .next/static .next/standalone/.next/static
           cp -r public .next/standalone/public
           tar -czf standalone.tar.gz -C .next standalone
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: asisten-hunian-fe
+          path: standalone.tar.gz
+          retention-days: 1
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: asisten-hunian-fe
+          path: /tmp
 
       - name: Setup SSH key
         run: |
@@ -44,10 +62,10 @@ jobs:
           scp -i ~/.ssh/deploy_key \
             -P ${{ secrets.SSH_PORT }} \
             -o StrictHostKeyChecking=no \
-            standalone.tar.gz \
+            /tmp/standalone.tar.gz \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.DEPLOY_DIR }}/standalone.tar.gz
 
-      - name: Extract & Restart PM2 on VPS
+      - name: Extract & Restart PM2
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -60,12 +78,9 @@ jobs:
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
             cd ${{ env.DEPLOY_DIR }}
-
-            echo "--- Extract build ---"
             tar -xzf standalone.tar.gz
             rm standalone.tar.gz
 
-            echo "--- Restart PM2 ---"
             cd standalone
             PORT=3000 pm2 reload asisten-hunian-fe \
               || PORT=3000 pm2 start server.js --name "asisten-hunian-fe"
