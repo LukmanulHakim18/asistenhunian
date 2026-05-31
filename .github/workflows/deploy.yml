@@ -4,8 +4,11 @@ on:
   push:
     branches: [main]
 
+env:
+  DEPLOY_DIR: /home/slnexpre/asistenhunian/asisten-hunian-fe
+
 jobs:
-  deploy:
+  build-and-deploy:
     name: Build & Deploy
     runs-on: ubuntu-latest
 
@@ -17,15 +20,41 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
+      - name: Install & Build
+        run: npm ci && npm run build
         env:
           NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
 
-      - name: Deploy to VPS via SSH
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Rsync standalone build to VPS
+        run: |
+          SSH_OPTS="-i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }}"
+
+          # Standalone server (includes minimal node_modules)
+          rsync -az --delete \
+            -e "ssh $SSH_OPTS" \
+            .next/standalone/ \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.DEPLOY_DIR }}/standalone/
+
+          # Static assets (CSS, JS, images)
+          rsync -az --delete \
+            -e "ssh $SSH_OPTS" \
+            .next/static/ \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.DEPLOY_DIR }}/standalone/.next/static/
+
+          # Public directory
+          rsync -az --delete \
+            -e "ssh $SSH_OPTS" \
+            public/ \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.DEPLOY_DIR }}/standalone/public/
+
+      - name: Restart PM2 on VPS
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -33,19 +62,10 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            set -e
-            cd /var/www/asisten-hunian-fe
-
-            echo "--- Pull latest ---"
-            git pull origin main
-
-            echo "--- Install dependencies ---"
-            npm ci --omit=dev
-
-            echo "--- Build ---"
-            NEXT_PUBLIC_API_BASE_URL=${{ secrets.NEXT_PUBLIC_API_BASE_URL }} npm run build
-
-            echo "--- Restart PM2 ---"
-            pm2 reload asisten-hunian-fe || pm2 start npm --name "asisten-hunian-fe" -- start -- -p 3000
-
-            echo "--- Done ---"
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            cd ${{ env.DEPLOY_DIR }}/standalone
+            PORT=3000 pm2 reload asisten-hunian-fe \
+              || PORT=3000 pm2 start server.js --name "asisten-hunian-fe"
+            pm2 save
+            echo "Deploy selesai — $(date)"
