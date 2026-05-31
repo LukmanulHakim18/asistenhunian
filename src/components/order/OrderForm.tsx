@@ -33,7 +33,6 @@ type Step = 1 | 2 | 3;
 
 export function OrderForm({ allServices }: OrderFormProps) {
   const [step, setStep] = useState<Step>(1);
-  const [items, setItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -46,19 +45,20 @@ export function OrderForm({ allServices }: OrderFormProps) {
   const [preferredTimeNote, setPreferredTimeNote] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
 
+  // Parse items dari URL params — tidak butuh effect karena tidak ada side effect
+  const [items, setItems] = useState<OrderItem[]>(() => {
+    const itemsParam = searchParams.get("items");
+    if (!itemsParam) return [];
+    return itemsParam.split(",").flatMap((part) => {
+      const [id, qty] = part.split(":");
+      const service = allServices.find((s) => s.id === id);
+      if (!service) return [];
+      return [{ service, quantity: parseInt(qty, 10) || 1 }];
+    });
+  });
+
   // Pre-fill dari profil jika user sudah login
   useEffect(() => {
-    const itemsParam = searchParams.get("items");
-    if (itemsParam) {
-      const parsed = itemsParam.split(",").flatMap((part) => {
-        const [id, qty] = part.split(":");
-        const service = allServices.find((s) => s.id === id);
-        if (!service) return [];
-        return [{ service, quantity: parseInt(qty, 10) || 1 }];
-      });
-      setItems(parsed);
-    }
-
     fetch("/api/auth/me")
       .then((res) => (res.ok ? (res.json() as Promise<User>) : null))
       .then((user) => {
@@ -69,7 +69,6 @@ export function OrderForm({ allServices }: OrderFormProps) {
         setCustomerEmail(user.email ?? "");
       })
       .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const subtotal = items.reduce(

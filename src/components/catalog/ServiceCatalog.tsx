@@ -27,6 +27,7 @@ export function ServiceCatalog({ services, categories }: Props) {
     setCart((prev) => {
       const current = prev[serviceId] ?? 0;
       if (current <= 1) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { [serviceId]: _, ...rest } = prev;
         return rest;
       }
