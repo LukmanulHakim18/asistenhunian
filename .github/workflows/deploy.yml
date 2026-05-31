@@ -25,6 +25,13 @@ jobs:
         env:
           NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
 
+      - name: Package standalone build
+        run: |
+          # Salin static & public ke dalam standalone sebelum dipack
+          cp -r .next/static .next/standalone/.next/static
+          cp -r public .next/standalone/public
+          tar -czf standalone.tar.gz -C .next standalone
+
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
@@ -32,34 +39,15 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
 
-      - name: Test SSH connection
+      - name: Upload build via SCP
         run: |
-          ssh -i ~/.ssh/deploy_key \
-            -p ${{ secrets.SSH_PORT }} \
+          scp -i ~/.ssh/deploy_key \
+            -P ${{ secrets.SSH_PORT }} \
             -o StrictHostKeyChecking=no \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            "echo SSH OK && whoami"
+            standalone.tar.gz \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.DEPLOY_DIR }}/standalone.tar.gz
 
-      - name: Rsync standalone build to VPS
-        run: |
-          SSH_OPTS="-i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }} -o StrictHostKeyChecking=no"
-
-          rsync -az --delete \
-            -e "ssh $SSH_OPTS" \
-            .next/standalone/ \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.DEPLOY_DIR }}/standalone/
-
-          rsync -az --delete \
-            -e "ssh $SSH_OPTS" \
-            .next/static/ \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.DEPLOY_DIR }}/standalone/.next/static/
-
-          rsync -az --delete \
-            -e "ssh $SSH_OPTS" \
-            public/ \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.DEPLOY_DIR }}/standalone/public/
-
-      - name: Restart PM2 on VPS
+      - name: Extract & Restart PM2 on VPS
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -67,10 +55,20 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
+            set -e
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            cd ${{ env.DEPLOY_DIR }}/standalone
+
+            cd ${{ env.DEPLOY_DIR }}
+
+            echo "--- Extract build ---"
+            tar -xzf standalone.tar.gz
+            rm standalone.tar.gz
+
+            echo "--- Restart PM2 ---"
+            cd standalone
             PORT=3000 pm2 reload asisten-hunian-fe \
               || PORT=3000 pm2 start server.js --name "asisten-hunian-fe"
             pm2 save
+
             echo "Deploy selesai — $(date)"
