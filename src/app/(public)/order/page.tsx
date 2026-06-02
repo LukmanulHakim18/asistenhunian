@@ -2,16 +2,24 @@ import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { servicesApi } from "@/lib/api/services";
+import { apiFetchData } from "@/lib/api/client";
 import { OrderForm } from "@/components/order/OrderForm";
+import type { ConfigItem } from "@/lib/api/types";
 
 async function OrderPageContent() {
   const cookieStore = await cookies();
   if (!cookieStore.get("token")?.value) redirect("/login?next=/order");
 
-  const services = await servicesApi.list().catch(() => []);
+  const [services, configs] = await Promise.all([
+    servicesApi.list().catch(() => []),
+    apiFetchData<ConfigItem[]>("/api/v1/config").catch(() => [] as ConfigItem[]),
+  ]);
   const activeServices = services.filter((s) => s.is_active);
 
-  return <OrderForm allServices={activeServices} />;
+  const feeConfig = configs.find((c) => c.key === "platform_fee");
+  const platformFee = feeConfig ? Number(feeConfig.value) : 0;
+
+  return <OrderForm allServices={activeServices} platformFee={platformFee} />;
 }
 
 export default function OrderPage() {

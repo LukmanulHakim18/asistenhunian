@@ -9,6 +9,7 @@ import {
   Users,
   ClipboardList,
   BarChart3,
+  Settings,
   LogOut,
 } from "lucide-react";
 
@@ -18,6 +19,7 @@ const navItems = [
   { href: "/admin/ob", label: "Kelola OB", icon: Users },
   { href: "/admin/orders", label: "Semua Order", icon: ClipboardList },
   { href: "/admin/laporan", label: "Laporan Keuangan", icon: BarChart3 },
+  { href: "/admin/settings", label: "Pengaturan", icon: Settings },
 ];
 
 export function AdminSidebar() {

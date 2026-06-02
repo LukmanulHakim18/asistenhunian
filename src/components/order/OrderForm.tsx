@@ -27,11 +27,12 @@ interface OrderItem {
 
 interface OrderFormProps {
   allServices: Service[];
+  platformFee?: number;
 }
 
 type Step = 1 | 2 | 3;
 
-export function OrderForm({ allServices }: OrderFormProps) {
+export function OrderForm({ allServices, platformFee = 0 }: OrderFormProps) {
   const [step, setStep] = useState<Step>(1);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -75,6 +76,7 @@ export function OrderForm({ allServices }: OrderFormProps) {
     (sum, item) => sum + item.service.price * item.quantity,
     0,
   );
+  const grandTotal = subtotal + platformFee;
 
   const updateQuantity = (serviceId: string, delta: number) => {
     setItems((prev) =>
@@ -197,9 +199,22 @@ export function OrderForm({ allServices }: OrderFormProps) {
                   </div>
                 ))}
                 <Separator />
+                {platformFee > 0 && (
+                  <>
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>Subtotal</span>
+                      <span>{formatCurrency(subtotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>Platform Fee</span>
+                      <span>{formatCurrency(platformFee)}</span>
+                    </div>
+                    <Separator />
+                  </>
+                )}
                 <div className="flex justify-between font-bold">
                   <span>Total</span>
-                  <span>{formatCurrency(subtotal)}</span>
+                  <span>{formatCurrency(grandTotal)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -305,9 +320,22 @@ export function OrderForm({ allServices }: OrderFormProps) {
                 </div>
               ))}
               <Separator />
+              {platformFee > 0 && (
+                <>
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Subtotal</span>
+                    <span>{formatCurrency(subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Platform Fee</span>
+                    <span>{formatCurrency(platformFee)}</span>
+                  </div>
+                  <Separator />
+                </>
+              )}
               <div className="flex justify-between font-bold">
                 <span>Total</span>
-                <span>{formatCurrency(subtotal)}</span>
+                <span>{formatCurrency(grandTotal)}</span>
               </div>
             </CardContent>
           </Card>

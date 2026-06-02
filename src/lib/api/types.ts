@@ -1,6 +1,7 @@
 // ─── Domain enums ────────────────────────────────────────────────────────────
 
 export type UserRole = "customer" | "ob" | "admin";
+export type ConfigType = "string" | "number" | "bool" | "json";
 export type OrderStatus =
   | "pending"
   | "confirmed"
@@ -134,6 +135,7 @@ export interface Order {
   payment_status: PaymentStatus;
   subtotal: number;
   total: number;
+  platform_fee: number;
   customer_notes: string | null;
   ob_notes: string | null;
   midtrans_transaction_id: string | null;
@@ -179,6 +181,22 @@ export interface UpdateProfileRequest {
   full_name?: string;
   phone?: string;
   unit_number?: string;
+}
+
+// ─── Config ──────────────────────────────────────────────────────────────────
+
+export interface ConfigItem {
+  key: string;
+  type: ConfigType;
+  value: string;
+  description?: string;
+  updated_at?: string;
+}
+
+export interface SetConfigRequest {
+  type: ConfigType;
+  value: string;
+  description?: string;
 }
 
 // ─── Admin ───────────────────────────────────────────────────────────────────

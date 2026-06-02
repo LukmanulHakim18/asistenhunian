@@ -15,7 +15,9 @@ export default async function OrderSuccessPage({
   const order = await ordersApi.track(order_number).catch(() => null);
   if (!order) notFound();
 
-  const total = order.total ?? order.items?.reduce((s, i) => s + i.subtotal, 0) ?? 0;
+  const itemsSubtotal = order.items?.reduce((s, i) => s + i.subtotal, 0) ?? 0;
+  const platformFee = order.platform_fee ?? 0;
+  const total = order.total ?? itemsSubtotal;
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-lg">
@@ -61,6 +63,19 @@ export default async function OrderSuccessPage({
                 </div>
               ))}
               <hr />
+              {platformFee > 0 && (
+                <>
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Subtotal</span>
+                    <span>{formatCurrency(itemsSubtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Platform Fee</span>
+                    <span>{formatCurrency(platformFee)}</span>
+                  </div>
+                  <hr />
+                </>
+              )}
               <div className="flex justify-between font-bold">
                 <span>Total</span>
                 <span>{formatCurrency(total)}</span>

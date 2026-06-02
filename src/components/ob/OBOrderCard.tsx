@@ -85,7 +85,19 @@ export function OBOrderCard({ order, compact = false }: Props) {
                     <span className="font-medium">{formatCurrency(item.subtotal)}</span>
                   </div>
                 ))}
-                <div className="flex justify-between font-bold pt-1">
+                {(order.platform_fee ?? 0) > 0 && (
+                  <>
+                    <div className="flex justify-between text-muted-foreground pt-1 border-t text-xs">
+                      <span>Subtotal</span>
+                      <span>{formatCurrency(order.subtotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground text-xs">
+                      <span>Platform Fee</span>
+                      <span>{formatCurrency(order.platform_fee)}</span>
+                    </div>
+                  </>
+                )}
+                <div className="flex justify-between font-bold pt-1 border-t">
                   <span>Total</span>
                   <span>{formatCurrency(order.total)}</span>
                 </div>

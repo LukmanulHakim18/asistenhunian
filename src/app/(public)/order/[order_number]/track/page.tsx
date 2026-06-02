@@ -27,7 +27,9 @@ export default async function OrderTrackPage({
   const order = await ordersApi.track(order_number).catch(() => null);
   if (!order) notFound();
 
-  const total = order.total ?? order.items?.reduce((s, i) => s + i.subtotal, 0) ?? 0;
+  const itemsSubtotal = order.items?.reduce((s, i) => s + i.subtotal, 0) ?? 0;
+  const platformFee = order.platform_fee ?? 0;
+  const total = order.total ?? itemsSubtotal;
 
   const showPayButton =
     order.payment_method === "transfer" &&
@@ -126,6 +128,18 @@ export default async function OrderTrackPage({
                     <span className="font-medium">{formatCurrency(item.subtotal)}</span>
                   </div>
                 ))}
+                {platformFee > 0 && (
+                  <>
+                    <div className="flex justify-between text-muted-foreground border-t pt-1">
+                      <span>Subtotal</span>
+                      <span>{formatCurrency(itemsSubtotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Platform Fee</span>
+                      <span>{formatCurrency(platformFee)}</span>
+                    </div>
+                  </>
+                )}
                 <div className="flex justify-between font-bold pt-1 border-t">
                   <span>Total</span>
                   <span>{formatCurrency(total)}</span>

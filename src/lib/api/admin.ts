@@ -5,6 +5,8 @@ import type {
   CreateOBRequest,
   UpdateOBRequest,
   LaporanRow,
+  ConfigItem,
+  SetConfigRequest,
 } from "./types";
 
 export const adminApi = {
@@ -28,4 +30,12 @@ export const adminApi = {
     serverFetchData<LaporanRow[]>(
       `/api/v1/admin/laporan${month ? `?month=${month}` : ""}`,
     ),
+
+  getConfigs: () => serverFetchData<ConfigItem[]>("/api/v1/config"),
+
+  setConfig: (key: string, body: SetConfigRequest) =>
+    serverFetchData<ConfigItem>(`/api/v1/admin/config/${key}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
 };
