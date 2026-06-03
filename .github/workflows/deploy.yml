@@ -15,6 +15,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: "[INFO] Print build config"
+        run: |
+          echo "========================================"
+          echo "  RUNNER OS   : $RUNNER_OS"
+          echo "  NODE VERSION: 22"
+          echo "  BRANCH      : $GITHUB_REF_NAME"
+          echo "  COMMIT      : $GITHUB_SHA"
+          echo "  API BASE URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}"
+          echo "========================================"
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -30,6 +40,7 @@ jobs:
           cp -r .next/static .next/standalone/.next/static
           cp -r public .next/standalone/public
           tar -czf standalone.tar.gz -C .next standalone
+          echo "[INFO] Ukuran artifact: $(du -sh standalone.tar.gz | cut -f1)"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -50,20 +61,35 @@ jobs:
           name: asisten-hunian-fe
           path: /tmp
 
+      - name: "[INFO] Print deploy config"
+        run: |
+          echo "========================================"
+          echo "  SSH HOST    : ${{ secrets.SSH_HOST }}"
+          echo "  SSH PORT    : ${{ secrets.SSH_PORT }}"
+          echo "  SSH USER    : ${{ secrets.SSH_USER }}"
+          echo "  DEPLOY DIR  : ${{ env.DEPLOY_DIR }}"
+          echo "  ARTIFACT    : $(du -sh /tmp/standalone.tar.gz | cut -f1)"
+          echo "========================================"
+
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
           printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          echo "[INFO] SSH key terpasang"
           ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+          echo "[INFO] Host fingerprint tersimpan"
 
       - name: Upload build via SCP
         run: |
+          echo "[INFO] Mulai SCP ke ${{ secrets.SSH_HOST }}:${{ env.DEPLOY_DIR }}"
           scp -i ~/.ssh/deploy_key \
             -P ${{ secrets.SSH_PORT }} \
             -o StrictHostKeyChecking=no \
+            -v \
             /tmp/standalone.tar.gz \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.DEPLOY_DIR }}/standalone.tar.gz
+          echo "[INFO] SCP selesai"
 
       - name: Extract & Restart PM2
         uses: appleboy/ssh-action@v1.2.0
@@ -74,16 +100,38 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           script: |
             set -e
+            echo "========================================"
+            echo "  HOST    : $(hostname)"
+            echo "  USER    : $(whoami)"
+            echo "  DIR     : ${{ env.DEPLOY_DIR }}"
+            echo "  DATE    : $(date)"
+            echo "========================================"
+
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            echo "[INFO] Node: $(node -v 2>/dev/null || echo 'tidak ditemukan')"
+            echo "[INFO] PM2 : $(pm2 -v 2>/dev/null || echo 'tidak ditemukan')"
 
+            echo "[INFO] Masuk ke ${{ env.DEPLOY_DIR }}"
             cd ${{ env.DEPLOY_DIR }}
+
+            echo "[INFO] Extract standalone.tar.gz"
             tar -xzf standalone.tar.gz
             rm standalone.tar.gz
+            echo "[INFO] Extract selesai, isi direktori:"
+            ls -lh
 
+            echo "[INFO] Masuk ke standalone/"
             cd standalone
+
+            echo "[INFO] Restart/start PM2 app: asisten-hunian-fe"
             PORT=3000 pm2 reload asisten-hunian-fe \
               || PORT=3000 pm2 start server.js --name "asisten-hunian-fe"
             pm2 save
 
-            echo "Deploy selesai — $(date)"
+            echo "[INFO] Status PM2 setelah deploy:"
+            pm2 list
+
+            echo "========================================"
+            echo "  Deploy selesai — $(date)"
+            echo "========================================"
