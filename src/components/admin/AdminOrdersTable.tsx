@@ -59,7 +59,7 @@ export function AdminOrdersTable({ orders, obList }: Props) {
               <TableHead>Unit</TableHead>
               <TableHead>Tanggal</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>OB</TableHead>
+              <TableHead>OB Item</TableHead>
               <TableHead className="text-right">Total</TableHead>
             </TableRow>
           </TableHeader>
@@ -83,10 +83,12 @@ export function AdminOrdersTable({ orders, obList }: Props) {
                   <OrderStatusBadge status={order.status} />
                 </TableCell>
                 <TableCell>
-                  {order.ob ? (
-                    <span className="text-sm">{order.ob.full_name}</span>
+                  {order.items && order.items.length > 0 ? (
+                    <div className="text-xs text-muted-foreground">
+                      {order.items.filter(i => i.ob_id).length}/{order.items.length} di-assign
+                    </div>
                   ) : (
-                    <Badge variant="outline" className="text-xs">Belum</Badge>
+                    <Badge variant="outline" className="text-xs">—</Badge>
                   )}
                 </TableCell>
                 <TableCell className="text-right font-medium">

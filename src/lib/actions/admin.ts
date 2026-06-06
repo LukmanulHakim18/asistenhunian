@@ -7,8 +7,8 @@ import type { CreateOBRequest, UpdateOBRequest, ServiceRequest } from "@/lib/api
 
 // ─── Order management ─────────────────────────────────────────────────────────
 
-export async function assignOBAction(orderId: string, obId: string) {
-  await adminApi.assignOB(orderId, { ob_id: obId });
+export async function assignItemOBAction(orderId: string, itemId: string, obId: string) {
+  await adminApi.assignItemOB(orderId, itemId, { ob_id: obId });
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${orderId}`);
 }
@@ -18,9 +18,8 @@ export async function adminUpdateOrderStatusAction(
   status: import("@/lib/api/types").OrderStatus,
   notes?: string,
 ) {
-  await import("@/lib/api/orders").then(({ ordersApi }) =>
-    ordersApi.updateStatus(orderId, { status, ob_notes: notes }),
-  );
+  const { ordersApi } = await import("@/lib/api/orders");
+  await ordersApi.updateStatus(orderId, { status, ob_notes: notes });
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${orderId}`);
 }

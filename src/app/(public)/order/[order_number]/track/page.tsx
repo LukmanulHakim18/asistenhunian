@@ -102,12 +102,6 @@ export default async function OrderTrackPage({
                 <span className="font-medium">{formatDateTime(order.confirmed_datetime)}</span>
               </>
             )}
-            {order.ob && (
-              <>
-                <span className="text-muted-foreground">OB Bertugas</span>
-                <span className="font-medium">{order.ob.full_name}</span>
-              </>
-            )}
             <span className="text-muted-foreground">Pembayaran</span>
             <span className="font-medium">
               {order.payment_method === "cash" ? "Cash ke OB" : "Transfer Online"}

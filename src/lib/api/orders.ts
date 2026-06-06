@@ -4,6 +4,7 @@ import type {
   CreateOrderRequest,
   CreateOrderResponse,
   UpdateStatusRequest,
+  UpdateItemStatusRequest,
 } from "./types";
 
 export const ordersApi = {
@@ -24,9 +25,16 @@ export const ordersApi = {
   /** Authenticated — detail with items and status history. */
   detail: (id: string) => serverFetchData<Order>(`/v1/orders/${id}`),
 
-  /** Authenticated — OB updates order status. */
+  /** Authenticated — update order status (cancel, etc). */
   updateStatus: (id: string, body: UpdateStatusRequest) =>
     serverFetchData<Order>(`/v1/orders/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  /** Authenticated — OB updates status of a specific item assigned to them. */
+  updateItemStatus: (orderId: string, itemId: string, body: UpdateItemStatusRequest) =>
+    serverFetchData<Order>(`/v1/orders/${orderId}/items/${itemId}/status`, {
       method: "PATCH",
       body: JSON.stringify(body),
     }),

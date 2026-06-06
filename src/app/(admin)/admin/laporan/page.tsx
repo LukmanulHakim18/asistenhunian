@@ -46,20 +46,6 @@ export default async function AdminRevenueReportPage() {
     .sort(([a], [b]) => b.localeCompare(a))
     .map(([, v]) => v);
 
-  // Group by OB
-  const obMap = new Map<string, { name: string; cash: number; transfer: number; count: number }>();
-  for (const o of orders) {
-    const key = o.ob_id ?? "unassigned";
-    const name = o.ob?.full_name ?? (o.ob_id ? "OB Tidak Diketahui" : "Belum Ditugaskan");
-    const existing = obMap.get(key) ?? { name, cash: 0, transfer: 0, count: 0 };
-    if (o.payment_method === "cash") existing.cash += o.total;
-    else existing.transfer += o.total;
-    existing.count += 1;
-    obMap.set(key, existing);
-  }
-  const obRows = Array.from(obMap.values()).sort(
-    (a, b) => b.cash + b.transfer - (a.cash + a.transfer),
-  );
 
   return (
     <div className="space-y-8">
@@ -168,40 +154,6 @@ export default async function AdminRevenueReportPage() {
         )}
       </div>
 
-      {/* Per-OB Breakdown */}
-      <div>
-        <h2 className="text-lg font-semibold mb-3">Rekap per OB</h2>
-        {obRows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Belum ada data.</p>
-        ) : (
-          <div className="rounded-lg border overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="text-left px-4 py-3 font-medium">Nama OB</th>
-                  <th className="text-right px-4 py-3 font-medium">Order</th>
-                  <th className="text-right px-4 py-3 font-medium">Tunai</th>
-                  <th className="text-right px-4 py-3 font-medium">Transfer</th>
-                  <th className="text-right px-4 py-3 font-medium text-primary">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {obRows.map((row, i) => (
-                  <tr key={i} className="bg-background hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 font-medium">{row.name}</td>
-                    <td className="px-4 py-3 text-right text-muted-foreground">{row.count}</td>
-                    <td className="px-4 py-3 text-right">{formatCurrency(row.cash)}</td>
-                    <td className="px-4 py-3 text-right">{formatCurrency(row.transfer)}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-primary">
-                      {formatCurrency(row.cash + row.transfer)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

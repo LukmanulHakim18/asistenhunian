@@ -32,8 +32,8 @@ export const adminApi = {
       `/v1/admin/laporan${month ? `?month=${month}` : ""}`,
     ),
 
-  assignOB: (orderId: string, body: AssignOBRequest) =>
-    serverFetchData<Order>(`/v1/admin/orders/${orderId}/assign`, {
+  assignItemOB: (orderId: string, itemId: string, body: AssignOBRequest) =>
+    serverFetchData<Order>(`/v1/admin/orders/${orderId}/items/${itemId}/assign`, {
       method: "PATCH",
       body: JSON.stringify(body),
     }),

@@ -2,16 +2,78 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { OrderStatusBadge } from "./OrderStatusBadge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
-import { updateOrderStatusAction } from "@/lib/actions/orders";
-import type { Order, OrderStatus } from "@/lib/api/types";
+import { updateItemStatusAction } from "@/lib/actions/orders";
+import type { Order, OrderItem, OrderItemStatus } from "@/lib/api/types";
+
+const ITEM_STATUS_LABEL: Record<OrderItemStatus, string> = {
+  pending: "Menunggu",
+  in_progress: "Sedang Dikerjakan",
+  completed: "Selesai",
+  cancelled: "Dibatalkan",
+};
+
+const ITEM_STATUS_COLOR: Record<OrderItemStatus, string> = {
+  pending: "bg-yellow-100 text-yellow-800",
+  in_progress: "bg-purple-100 text-purple-800",
+  completed: "bg-green-100 text-green-800",
+  cancelled: "bg-red-100 text-red-800",
+};
+
+function ItemStatusRow({ orderId, item }: { orderId: string; item: OrderItem }) {
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+
+  const updateStatus = (newStatus: OrderItemStatus) => {
+    startTransition(async () => {
+      try {
+        await updateItemStatusAction(orderId, item.id, newStatus);
+        toast.success(`${item.service_name}: ${ITEM_STATUS_LABEL[newStatus]}`);
+        router.refresh();
+      } catch {
+        toast.error("Gagal update status item");
+      }
+    });
+  };
+
+  const isDone = item.status === "completed" || item.status === "cancelled";
+
+  return (
+    <div className="py-2 border-b last:border-0">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-sm font-medium">{item.service_name} × {item.quantity}</p>
+          <p className="text-xs text-muted-foreground">{formatCurrency(item.subtotal)}</p>
+          <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium ${ITEM_STATUS_COLOR[item.status]}`}>
+            {ITEM_STATUS_LABEL[item.status]}
+          </span>
+          {item.notes && (
+            <p className="text-xs text-muted-foreground mt-1 italic">{item.notes}</p>
+          )}
+        </div>
+        {!isDone && (
+          <div className="flex gap-1 shrink-0">
+            {item.status === "pending" && (
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => updateStatus("in_progress")} disabled={isPending}>
+                Mulai
+              </Button>
+            )}
+            {item.status === "in_progress" && (
+              <Button size="sm" className="h-7 text-xs" onClick={() => updateStatus("completed")} disabled={isPending}>
+                Selesai ✓
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 interface Props {
   order: Order;
@@ -19,22 +81,7 @@ interface Props {
 }
 
 export function OBOrderCard({ order, compact = false }: Props) {
-  const [isPending, startTransition] = useTransition();
-  const [obNotes, setObNotes] = useState(order.ob_notes ?? "");
-  const [showConfirmForm, setShowConfirmForm] = useState(false);
-  const router = useRouter();
-
-  const updateStatus = (newStatus: OrderStatus) => {
-    startTransition(async () => {
-      try {
-        await updateOrderStatusAction(order.id, newStatus, obNotes || undefined);
-        toast.success(`Status diperbarui: ${newStatus}`);
-        router.refresh();
-      } catch {
-        toast.error("Gagal update status");
-      }
-    });
-  };
+  const myItems = order.items ?? [];
 
   return (
     <Card>
@@ -75,63 +122,26 @@ export function OBOrderCard({ order, compact = false }: Props) {
             </span>
           </div>
 
-          {order.items && order.items.length > 0 && (
+          {order.notes && (
+            <div className="bg-muted rounded p-2 text-xs">
+              <span className="font-medium">Catatan:</span> {order.notes}
+            </div>
+          )}
+
+          {myItems.length > 0 && (
             <>
               <Separator />
-              <div className="space-y-1">
-                {order.items.map((item) => (
-                  <div key={item.id} className="flex justify-between">
-                    <span>{item.service_name} × {item.quantity}</span>
-                    <span className="font-medium">{formatCurrency(item.subtotal)}</span>
-                  </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2">Item Tugas Saya</p>
+                {myItems.map((item) => (
+                  <ItemStatusRow key={item.id} orderId={order.id} item={item} />
                 ))}
-                {(order.platform_fee ?? 0) > 0 && (
-                  <>
-                    <div className="flex justify-between text-muted-foreground pt-1 border-t text-xs">
-                      <span>Subtotal</span>
-                      <span>{formatCurrency(order.subtotal)}</span>
-                    </div>
-                    <div className="flex justify-between text-muted-foreground text-xs">
-                      <span>Platform Fee</span>
-                      <span>{formatCurrency(order.platform_fee)}</span>
-                    </div>
-                  </>
-                )}
-                <div className="flex justify-between font-bold pt-1 border-t">
-                  <span>Total</span>
-                  <span>{formatCurrency(order.total)}</span>
-                </div>
+              </div>
+              <div className="flex justify-between font-bold pt-1">
+                <span>Total</span>
+                <span>{formatCurrency(order.total)}</span>
               </div>
             </>
-          )}
-
-          {order.customer_notes && (
-            <div className="bg-muted rounded p-2 text-xs">
-              <span className="font-medium">Catatan customer:</span> {order.customer_notes}
-            </div>
-          )}
-
-          {/* Confirm form */}
-          {showConfirmForm && order.status === "pending" && (
-            <div className="border rounded p-3 space-y-3 bg-blue-50">
-              <div className="space-y-2">
-                <Label>Catatan untuk Customer (opsional)</Label>
-                <Textarea
-                  value={obNotes}
-                  onChange={(e) => setObNotes(e.target.value)}
-                  placeholder="Catatan tambahan..."
-                  rows={2}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" onClick={() => { updateStatus("confirmed"); setShowConfirmForm(false); }} disabled={isPending}>
-                  Konfirmasi Jadwal
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setShowConfirmForm(false)}>
-                  Batal
-                </Button>
-              </div>
-            </div>
           )}
         </CardContent>
       )}
@@ -142,29 +152,6 @@ export function OBOrderCard({ order, compact = false }: Props) {
           <p className="font-medium">{formatCurrency(order.total)}</p>
         </CardContent>
       )}
-
-      <CardFooter className="gap-2 flex-wrap">
-        {order.status === "pending" && (
-          <>
-            <Button size="sm" onClick={() => setShowConfirmForm(!showConfirmForm)} disabled={isPending}>
-              Konfirmasi Order
-            </Button>
-            <Button size="sm" variant="destructive" onClick={() => updateStatus("cancelled")} disabled={isPending}>
-              Tolak
-            </Button>
-          </>
-        )}
-        {order.status === "confirmed" && (
-          <Button size="sm" onClick={() => updateStatus("in_progress")} disabled={isPending}>
-            Mulai Kerjakan
-          </Button>
-        )}
-        {order.status === "in_progress" && (
-          <Button size="sm" onClick={() => updateStatus("completed")} disabled={isPending}>
-            Tandai Selesai ✓
-          </Button>
-        )}
-      </CardFooter>
     </Card>
   );
 }

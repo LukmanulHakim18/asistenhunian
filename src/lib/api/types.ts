@@ -8,6 +8,7 @@ export type OrderStatus =
   | "in_progress"
   | "completed"
   | "cancelled";
+export type OrderItemStatus = "pending" | "in_progress" | "completed" | "cancelled";
 export type PaymentMethod = "cash" | "transfer" | "qris";
 export type PaymentStatus = "unpaid" | "paid";
 
@@ -114,7 +115,11 @@ export interface OrderItem {
   service_price: number;
   quantity: number;
   subtotal: number;
+  ob_id: string | null;
+  status: OrderItemStatus;
+  notes: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface OrderStatusHistory {
@@ -138,22 +143,21 @@ export interface Order {
   requested_date: string;
   preferred_time_note: string | null;
   confirmed_datetime: string | null;
-  ob_id: string | null;
   status: OrderStatus;
   payment_method: PaymentMethod;
   payment_status: PaymentStatus;
   subtotal: number;
   total: number;
   platform_fee: number;
-  customer_notes: string | null;
-  ob_notes: string | null;
+  notes: string | null;
+  invoice_pdf_url: string | null;
+  invoice_sent_at: string | null;
   midtrans_transaction_id: string | null;
   midtrans_payment_url: string | null;
   created_at: string;
   updated_at: string;
   items?: OrderItem[];
   status_history?: OrderStatusHistory[];
-  ob?: { id: string; full_name: string; phone: string | null } | null;
 }
 
 export interface OrderItemRequest {
@@ -181,7 +185,13 @@ export interface CreateOrderResponse {
 
 export interface UpdateStatusRequest {
   status: OrderStatus;
+  ob_id?: string;
   ob_notes?: string;
+}
+
+export interface UpdateItemStatusRequest {
+  status: OrderItemStatus;
+  notes?: string;
 }
 
 // ─── Profile ─────────────────────────────────────────────────────────────────

@@ -13,9 +13,9 @@ import {
 } from "@/components/ui/select";
 import { OrderStatusBadge } from "@/components/ob/OrderStatusBadge";
 import { formatCurrency, formatDate, formatDateTime, ORDER_STATUS_LABEL } from "@/lib/utils";
-import { assignOBAction, adminUpdateOrderStatusAction } from "@/lib/actions/admin";
+import { assignItemOBAction, adminUpdateOrderStatusAction } from "@/lib/actions/admin";
 import { toast } from "sonner";
-import type { Order, OBUser, OrderStatus } from "@/lib/api/types";
+import type { Order, OBUser, OrderStatus, OrderItem } from "@/lib/api/types";
 import { CheckCircle, Clock, Loader, XCircle } from "lucide-react";
 
 const STATUS_ICONS: Record<OrderStatus, React.ReactNode> = {
@@ -24,6 +24,20 @@ const STATUS_ICONS: Record<OrderStatus, React.ReactNode> = {
   in_progress: <Loader className="h-4 w-4 text-purple-500" />,
   completed: <CheckCircle className="h-4 w-4 text-green-500" />,
   cancelled: <XCircle className="h-4 w-4 text-red-500" />,
+};
+
+const ITEM_STATUS_LABEL: Record<string, string> = {
+  pending: "Menunggu",
+  in_progress: "Dikerjakan",
+  completed: "Selesai",
+  cancelled: "Dibatalkan",
+};
+
+const ITEM_STATUS_COLOR: Record<string, string> = {
+  pending: "bg-yellow-100 text-yellow-800",
+  in_progress: "bg-purple-100 text-purple-800",
+  completed: "bg-green-100 text-green-800",
+  cancelled: "bg-red-100 text-red-800",
 };
 
 const PAYMENT_METHOD_LABEL: Record<string, string> = {
@@ -37,151 +51,113 @@ interface Props {
   obList: OBUser[];
 }
 
-function StatusSection({ order, obList }: Props) {
-  const [selectedOB, setSelectedOB] = useState<string>(order.ob_id ?? "");
-  const [notes, setNotes] = useState("");
+function ItemAssignRow({ orderId, item, obList }: { orderId: string; item: OrderItem; obList: OBUser[] }) {
+  const [selectedOB, setSelectedOB] = useState<string>(item.ob_id ?? "");
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
-
   const activeOBs = obList.filter((ob) => ob.is_active);
-  const isDone = order.status === "completed" || order.status === "cancelled";
+  const assignedOB = obList.find((ob) => ob.id === item.ob_id);
 
-  const handleConfirm = () => {
-    if (!selectedOB) {
-      toast.error("Pilih OB terlebih dahulu");
-      return;
-    }
+  const handleAssign = () => {
+    if (!selectedOB || selectedOB === item.ob_id) return;
     startTransition(async () => {
       try {
-        // Assign OB dulu, lalu confirm
-        await assignOBAction(order.id, selectedOB);
-        await adminUpdateOrderStatusAction(order.id, "confirmed", notes || undefined);
-        toast.success("Order dikonfirmasi dan OB telah di-assign");
-        setNotes("");
-        router.refresh();
+        await assignItemOBAction(orderId, item.id, selectedOB);
+        toast.success(`OB di-assign ke ${item.service_name}`);
       } catch {
-        toast.error("Gagal konfirmasi order");
-      }
-    });
-  };
-
-  const handleStatus = (newStatus: OrderStatus) => {
-    startTransition(async () => {
-      try {
-        await adminUpdateOrderStatusAction(order.id, newStatus, notes || undefined);
-        toast.success(`Status diperbarui: ${ORDER_STATUS_LABEL[newStatus]}`);
-        setNotes("");
-        router.refresh();
-      } catch {
-        toast.error("Gagal update status");
+        toast.error("Gagal assign OB");
       }
     });
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Update Status</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Status saat ini:</span>
-          <OrderStatusBadge status={order.status} />
+    <div className="py-3 border-b last:border-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-sm">{item.service_name} × {item.quantity}</p>
+          <p className="text-sm text-muted-foreground">{formatCurrency(item.subtotal)}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ITEM_STATUS_COLOR[item.status] ?? "bg-gray-100 text-gray-800"}`}>
+              {ITEM_STATUS_LABEL[item.status] ?? item.status}
+            </span>
+            {assignedOB && (
+              <span className="text-xs text-muted-foreground">OB: {assignedOB.full_name}</span>
+            )}
+          </div>
+          {item.notes && (
+            <p className="text-xs text-muted-foreground mt-1 italic">{item.notes}</p>
+          )}
         </div>
-
-        {order.ob && (
-          <div className="text-sm">
-            <span className="text-muted-foreground">OB: </span>
-            <span className="font-medium">{order.ob.full_name}</span>
+        {item.status !== "cancelled" && item.status !== "completed" && (
+          <div className="flex items-center gap-2 shrink-0">
+            <Select
+              value={selectedOB}
+              onValueChange={(v) => setSelectedOB(v ?? "")}
+              disabled={isPending}
+            >
+              <SelectTrigger className="h-8 w-36 text-xs">
+                <SelectValue placeholder="Pilih OB..." />
+              </SelectTrigger>
+              <SelectContent>
+                {activeOBs.map((ob) => (
+                  <SelectItem key={ob.id} value={ob.id}>
+                    {ob.full_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              onClick={handleAssign}
+              disabled={isPending || !selectedOB || selectedOB === item.ob_id}
+            >
+              {isPending ? "..." : "Assign"}
+            </Button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
 
-        {!isDone && (
-          <>
-            {/* Pilih OB hanya saat pending */}
-            {order.status === "pending" && (
-              <div className="space-y-1">
-                <Label className="text-xs">Pilih OB <span className="text-destructive">*</span></Label>
-                <Select
-                  value={selectedOB}
-                  onValueChange={(v) => setSelectedOB(v ?? "")}
-                  disabled={isPending}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih OB..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activeOBs.map((ob) => (
-                      <SelectItem key={ob.id} value={ob.id}>
-                        {ob.full_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+function CancelSection({ order }: { order: Order }) {
+  const [notes, setNotes] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
-            <div className="space-y-1">
-              <Label className="text-xs">Catatan (opsional)</Label>
-              <Textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Catatan untuk customer atau OB..."
-                rows={2}
-              />
-            </div>
+  if (order.status === "completed" || order.status === "cancelled") return null;
 
-            <div className="flex flex-wrap gap-2">
-              {order.status === "pending" && (
-                <>
-                  <Button
-                    size="sm"
-                    onClick={handleConfirm}
-                    disabled={isPending || !selectedOB}
-                  >
-                    {isPending ? "Memproses..." : "Konfirmasi Order"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => handleStatus("cancelled")}
-                    disabled={isPending}
-                  >
-                    Batalkan
-                  </Button>
-                </>
-              )}
-              {order.status === "confirmed" && (
-                <>
-                  <Button
-                    size="sm"
-                    onClick={() => handleStatus("in_progress")}
-                    disabled={isPending}
-                  >
-                    Mulai Kerjakan
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => handleStatus("cancelled")}
-                    disabled={isPending}
-                  >
-                    Batalkan
-                  </Button>
-                </>
-              )}
-              {order.status === "in_progress" && (
-                <Button
-                  size="sm"
-                  onClick={() => handleStatus("completed")}
-                  disabled={isPending}
-                >
-                  Tandai Selesai
-                </Button>
-              )}
-            </div>
-          </>
-        )}
+  const handleCancel = () => {
+    startTransition(async () => {
+      try {
+        await adminUpdateOrderStatusAction(order.id, "cancelled", notes || undefined);
+        toast.success("Order dibatalkan");
+        router.refresh();
+      } catch {
+        toast.error("Gagal membatalkan order");
+      }
+    });
+  };
+
+  return (
+    <Card className="border-destructive/30">
+      <CardHeader>
+        <CardTitle className="text-base text-destructive">Batalkan Order</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="space-y-1">
+          <Label className="text-xs">Alasan pembatalan (opsional)</Label>
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Alasan pembatalan..."
+            rows={2}
+          />
+        </div>
+        <Button variant="destructive" size="sm" onClick={handleCancel} disabled={isPending}>
+          {isPending ? "Memproses..." : "Batalkan Order"}
+        </Button>
       </CardContent>
     </Card>
   );
@@ -193,7 +169,7 @@ export function AdminOrderDetail({ order, obList }: Props) {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Kiri: Info Order */}
+      {/* Kiri */}
       <div className="lg:col-span-2 space-y-4">
         <Card>
           <CardHeader>
@@ -239,98 +215,106 @@ export function AdminOrderDetail({ order, obList }: Props) {
                 </span>
               </span>
             </div>
-            {order.customer_notes && (
+            {order.notes && (
               <div className="bg-muted rounded p-2 text-xs">
-                <span className="font-medium">Catatan customer:</span> {order.customer_notes}
+                <span className="font-medium">Catatan:</span> {order.notes}
               </div>
             )}
           </CardContent>
         </Card>
 
+        {/* Items + assign OB per item */}
         {order.items && order.items.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Layanan Dipesan</CardTitle>
+              <CardTitle className="text-base">Layanan & Assign OB</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              {order.items.map((item) => (
-                <div key={item.id} className="flex justify-between">
-                  <span>{item.service_name} × {item.quantity}</span>
-                  <span className="font-medium">{formatCurrency(item.subtotal)}</span>
+            <CardContent>
+              <div>
+                {order.items.map((item) => (
+                  <ItemAssignRow key={item.id} orderId={order.id} item={item} obList={obList} />
+                ))}
+              </div>
+              <div className="pt-3 space-y-1 text-sm">
+                {platformFee > 0 && (
+                  <>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Subtotal</span>
+                      <span>{formatCurrency(itemsSubtotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Platform Fee</span>
+                      <span>{formatCurrency(platformFee)}</span>
+                    </div>
+                    <Separator />
+                  </>
+                )}
+                <div className="flex justify-between font-bold">
+                  <span>Total</span>
+                  <span>{formatCurrency(order.total)}</span>
                 </div>
-              ))}
-              <Separator />
-              {platformFee > 0 && (
-                <>
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Subtotal</span>
-                    <span>{formatCurrency(itemsSubtotal)}</span>
-                  </div>
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Platform Fee</span>
-                    <span>{formatCurrency(platformFee)}</span>
-                  </div>
-                  <Separator />
-                </>
-              )}
-              <div className="flex justify-between font-bold">
-                <span>Total</span>
-                <span>{formatCurrency(order.total)}</span>
               </div>
             </CardContent>
           </Card>
         )}
 
+        {/* Status history */}
         {order.status_history && order.status_history.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Riwayat Status</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-0">
-                {order.status_history.map((h, idx) => (
-                  <div key={h.id} className="flex gap-3">
-                    <div className="flex flex-col items-center">
-                      <div className="mt-0.5">{STATUS_ICONS[h.new_status]}</div>
-                      {idx < (order.status_history!.length - 1) && (
-                        <div className="w-px flex-1 bg-border my-1" />
-                      )}
-                    </div>
-                    <div className="pb-4">
-                      <p className="font-medium text-sm">{ORDER_STATUS_LABEL[h.new_status]}</p>
-                      {h.notes && (
-                        <p className="text-sm text-muted-foreground">{h.notes}</p>
-                      )}
-                      <p className="text-xs text-muted-foreground">{formatDateTime(h.created_at)}</p>
-                    </div>
+              {order.status_history.map((h, idx) => (
+                <div key={h.id} className="flex gap-3">
+                  <div className="flex flex-col items-center">
+                    <div className="mt-0.5">{STATUS_ICONS[h.new_status]}</div>
+                    {idx < (order.status_history!.length - 1) && (
+                      <div className="w-px flex-1 bg-border my-1" />
+                    )}
                   </div>
-                ))}
-              </div>
+                  <div className="pb-4">
+                    <p className="font-medium text-sm">{ORDER_STATUS_LABEL[h.new_status]}</p>
+                    {h.notes && <p className="text-sm text-muted-foreground">{h.notes}</p>}
+                    <p className="text-xs text-muted-foreground">{formatDateTime(h.created_at)}</p>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
         )}
       </div>
 
-      {/* Kanan: Actions */}
+      {/* Kanan */}
       <div className="space-y-4">
         <Card>
-          <CardContent className="pt-4 space-y-1 text-sm">
+          <CardContent className="pt-4 text-sm space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Status</span>
+              <span className="text-muted-foreground">Status Order</span>
               <OrderStatusBadge status={order.status} />
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">OB</span>
-              {order.ob ? (
-                <span className="font-medium">{order.ob.full_name}</span>
-              ) : (
-                <Badge variant="outline">Belum</Badge>
-              )}
+              <span className="text-muted-foreground">Total Item</span>
+              <span>{order.items?.length ?? 0} layanan</span>
             </div>
+            {order.items && order.items.length > 0 && (
+              <div className="pt-1 space-y-1">
+                {["pending", "in_progress", "completed", "cancelled"].map((s) => {
+                  const count = order.items!.filter((i) => i.status === s).length;
+                  if (count === 0) return null;
+                  return (
+                    <div key={s} className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">{ITEM_STATUS_LABEL[s]}</span>
+                      <Badge variant="secondary" className="text-xs h-5">{count}</Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        <StatusSection order={order} obList={obList} />
+        <CancelSection order={order} />
       </div>
     </div>
   );
