@@ -10,6 +10,19 @@ import type { CreateOBRequest, UpdateOBRequest, ServiceRequest } from "@/lib/api
 export async function assignOBAction(orderId: string, obId: string) {
   await adminApi.assignOB(orderId, { ob_id: obId });
   revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+}
+
+export async function adminUpdateOrderStatusAction(
+  orderId: string,
+  status: import("@/lib/api/types").OrderStatus,
+  notes?: string,
+) {
+  await import("@/lib/api/orders").then(({ ordersApi }) =>
+    ordersApi.updateStatus(orderId, { status, ob_notes: notes }),
+  );
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
 }
 
 // ─── OB management ───────────────────────────────────────────────────────────
