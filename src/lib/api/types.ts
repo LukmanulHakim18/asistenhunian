@@ -58,8 +58,7 @@ export interface ForgotPasswordRequest {
 }
 
 export interface ResetPasswordRequest {
-  email: string;
-  otp: string;
+  token: string;
   new_password: string;
 }
 

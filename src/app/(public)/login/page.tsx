@@ -85,6 +85,11 @@ function LoginForm() {
                 required
               />
             </div>
+            <div className="flex justify-end">
+              <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+                Lupa password?
+              </Link>
+            </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Memproses..." : "Masuk"}
             </Button>
