@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { Suspense, useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authApi } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
@@ -18,7 +18,7 @@ import { MailCheck } from "lucide-react";
 
 const OTP_LENGTH = 6;
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get("email") ?? "";
@@ -43,7 +43,6 @@ export default function VerifyEmailPage() {
     const next = [...otp];
     next[index] = digit;
     setOtp(next);
-
     if (digit && index < OTP_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -60,9 +59,7 @@ export default function VerifyEmailPage() {
     if (!pasted) return;
     e.preventDefault();
     const next = [...otp];
-    pasted.split("").forEach((char, i) => {
-      next[i] = char;
-    });
+    pasted.split("").forEach((char, i) => { next[i] = char; });
     setOtp(next);
     inputRefs.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus();
   };
@@ -115,7 +112,6 @@ export default function VerifyEmailPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* OTP input boxes */}
           <div className="flex gap-2 justify-center" onPaste={handlePaste}>
             {otp.map((digit, i) => (
               <Input
@@ -132,11 +128,7 @@ export default function VerifyEmailPage() {
             ))}
           </div>
 
-          <Button
-            className="w-full"
-            onClick={handleVerify}
-            disabled={!isComplete || loading}
-          >
+          <Button className="w-full" onClick={handleVerify} disabled={!isComplete || loading}>
             {loading ? "Memverifikasi..." : "Verifikasi"}
           </Button>
 
@@ -145,10 +137,7 @@ export default function VerifyEmailPage() {
             {resendCooldown > 0 ? (
               <span>Kirim ulang dalam {resendCooldown}s</span>
             ) : (
-              <button
-                onClick={handleResend}
-                className="text-primary hover:underline font-medium"
-              >
+              <button onClick={handleResend} className="text-primary hover:underline font-medium">
                 Kirim Ulang
               </button>
             )}
@@ -156,5 +145,17 @@ export default function VerifyEmailPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-[80vh] flex items-center justify-center">
+        <p className="text-muted-foreground">Memuat...</p>
+      </div>
+    }>
+      <VerifyEmailContent />
+    </Suspense>
   );
 }
