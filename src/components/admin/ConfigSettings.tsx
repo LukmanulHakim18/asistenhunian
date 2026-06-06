@@ -9,45 +9,66 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { setConfigAction } from "@/lib/actions/config";
-import type { ConfigItem } from "@/lib/api/types";
+import type { ConfigItem, ConfigType } from "@/lib/api/types";
 import { Pencil, X, Check } from "lucide-react";
 
-const CONFIG_LABELS: Record<string, { label: string; description: string }> = {
+const CONFIG_META: Record<string, { label: string; description: string; type: ConfigType; placeholder?: string }> = {
   platform_fee: {
     label: "Platform Fee",
     description: "Biaya platform yang dikenakan per transaksi order",
+    type: "number",
+    placeholder: "Contoh: 5000",
+  },
+  admin_wa: {
+    label: "Nomor WhatsApp Admin",
+    description: "Nomor WA admin untuk konfirmasi pembayaran transfer (format: 628xxx)",
+    type: "string",
+    placeholder: "Contoh: 6281234567890",
+  },
+  bank_account: {
+    label: "Info Rekening Bank",
+    description: "Info rekening tujuan transfer yang ditampilkan di email",
+    type: "string",
+    placeholder: "Contoh: BCA 1234567890 a/n PT Asisten Hunian",
   },
 };
 
+// Keys that are always shown in the UI even if not yet set in the backend
+const KNOWN_KEYS = ["platform_fee", "admin_wa", "bank_account"];
+
 function ConfigRow({ item }: { item: ConfigItem }) {
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(item.value === "");
   const [value, setValue] = useState(item.value);
-  const [description, setDescription] = useState(item.description ?? "");
   const [isPending, startTransition] = useTransition();
 
-  const meta = CONFIG_LABELS[item.key];
+  const meta = CONFIG_META[item.key];
   const displayLabel = meta?.label ?? item.key;
-  const displayDescription = description || meta?.description;
+  const displayDescription = item.description || meta?.description;
+  const isNew = item.value === "";
 
   const handleSave = () => {
+    if (!value.trim()) {
+      toast.error("Nilai tidak boleh kosong");
+      return;
+    }
     startTransition(async () => {
       try {
         await setConfigAction(item.key, {
           type: item.type,
-          value,
-          description: description || undefined,
+          value: value.trim(),
+          description: meta?.description,
         });
-        toast.success(`${displayLabel} berhasil diperbarui`);
+        toast.success(`${displayLabel} berhasil disimpan`);
         setEditing(false);
       } catch {
-        toast.error(`Gagal memperbarui ${displayLabel}`);
+        toast.error(`Gagal menyimpan ${displayLabel}`);
       }
     });
   };
 
   const handleCancel = () => {
+    if (isNew) return; // can't cancel a new config
     setValue(item.value);
-    setDescription(item.description ?? "");
     setEditing(false);
   };
 
@@ -76,8 +97,9 @@ function ConfigRow({ item }: { item: ConfigItem }) {
                 type={item.type === "number" ? "number" : "text"}
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                className="h-8 w-48"
+                className={`h-8 ${item.type === "number" ? "w-40" : "w-full max-w-md"}`}
                 min={item.type === "number" ? "0" : undefined}
+                placeholder={meta?.placeholder}
               />
               {item.type === "number" && value && (
                 <p className="text-xs text-muted-foreground">
@@ -85,35 +107,30 @@ function ConfigRow({ item }: { item: ConfigItem }) {
                 </p>
               )}
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Deskripsi (opsional)</Label>
-              <Input
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="h-8"
-                placeholder="Keterangan config ini..."
-              />
-            </div>
             <div className="flex gap-2">
               <Button size="sm" onClick={handleSave} disabled={isPending}>
                 <Check className="h-3 w-3 mr-1" />
                 {isPending ? "Menyimpan..." : "Simpan"}
               </Button>
-              <Button size="sm" variant="outline" onClick={handleCancel} disabled={isPending}>
-                <X className="h-3 w-3 mr-1" />
-                Batal
-              </Button>
+              {!isNew && (
+                <Button size="sm" variant="outline" onClick={handleCancel} disabled={isPending}>
+                  <X className="h-3 w-3 mr-1" />
+                  Batal
+                </Button>
+              )}
             </div>
           </div>
         ) : (
-          <p className="text-lg font-bold">{displayValue}</p>
+          <p className={`text-lg font-bold ${isNew ? "text-muted-foreground italic text-sm" : ""}`}>
+            {isNew ? "Belum diisi" : displayValue}
+          </p>
         )}
       </div>
 
       {!editing && (
         <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
           <Pencil className="h-3 w-3 mr-1" />
-          Edit
+          {isNew ? "Isi" : "Edit"}
         </Button>
       )}
     </div>
@@ -125,15 +142,21 @@ interface Props {
 }
 
 export function ConfigSettings({ configs }: Props) {
-  if (configs.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-8 text-center text-muted-foreground">
-          Belum ada konfigurasi.
-        </CardContent>
-      </Card>
-    );
-  }
+  // Merge API configs with known keys — show known keys even if not yet set
+  const apiMap = new Map(configs.map((c) => [c.key, c]));
+  const merged: ConfigItem[] = KNOWN_KEYS.map(
+    (key) =>
+      apiMap.get(key) ?? {
+        key,
+        type: CONFIG_META[key]?.type ?? "string",
+        value: "",
+        description: CONFIG_META[key]?.description,
+      }
+  );
+  // Append any extra configs from API that aren't in KNOWN_KEYS
+  configs.forEach((c) => {
+    if (!KNOWN_KEYS.includes(c.key)) merged.push(c);
+  });
 
   return (
     <Card>
@@ -141,7 +164,7 @@ export function ConfigSettings({ configs }: Props) {
         <CardTitle className="text-base">Konfigurasi Platform</CardTitle>
       </CardHeader>
       <CardContent className="p-0 px-6">
-        {configs.map((item) => (
+        {merged.map((item) => (
           <ConfigRow key={item.key} item={item} />
         ))}
       </CardContent>
