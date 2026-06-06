@@ -33,7 +33,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      await apiFetch("/api/v1/auth/register", {
+      await apiFetch("/v1/auth/register", {
         method: "POST",
         body: JSON.stringify({
           full_name: fullName,

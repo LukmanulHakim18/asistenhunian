@@ -3,22 +3,22 @@ import type { Service, ServiceCategory, ServiceWithCategory, ServiceRequest } fr
 
 export const servicesApi = {
   listCategories: () =>
-    apiFetchData<ServiceCategory[]>("/api/v1/service-categories"),
+    apiFetchData<ServiceCategory[]>("/v1/service-categories"),
 
-  list: () => apiFetchData<ServiceWithCategory[]>("/api/v1/services"),
+  list: () => apiFetchData<ServiceWithCategory[]>("/v1/services"),
 
   create: (body: ServiceRequest) =>
-    serverFetchData<Service>("/api/v1/services", {
+    serverFetchData<Service>("/v1/services", {
       method: "POST",
       body: JSON.stringify(body),
     }),
 
   update: (id: string, body: Partial<ServiceRequest>) =>
-    serverFetchData<Service>(`/api/v1/services/${id}`, {
+    serverFetchData<Service>(`/v1/services/${id}`, {
       method: "PATCH",
       body: JSON.stringify(body),
     }),
 
   delete: (id: string) =>
-    serverFetch<void>(`/api/v1/services/${id}`, { method: "DELETE" }),
+    serverFetch<void>(`/v1/services/${id}`, { method: "DELETE" }),
 };

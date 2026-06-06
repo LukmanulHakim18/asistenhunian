@@ -121,7 +121,7 @@ export function OrderForm({ allServices, platformFee = 0 }: OrderFormProps) {
       };
       if (preferredTimeNote) payload.preferred_time_note = preferredTimeNote;
 
-      const result = await apiFetchData<CreateOrderResponse>("/api/v1/orders", {
+      const result = await apiFetchData<CreateOrderResponse>("/v1/orders", {
         method: "POST",
         body: JSON.stringify(payload),
       });

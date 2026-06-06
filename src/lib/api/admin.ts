@@ -10,31 +10,31 @@ import type {
 } from "./types";
 
 export const adminApi = {
-  listOB: () => serverFetchData<OBUser[]>("/api/v1/admin/ob"),
+  listOB: () => serverFetchData<OBUser[]>("/v1/admin/ob"),
 
   createOB: (body: CreateOBRequest) =>
-    serverFetchData<OBUser>("/api/v1/admin/ob", {
+    serverFetchData<OBUser>("/v1/admin/ob", {
       method: "POST",
       body: JSON.stringify(body),
     }),
 
   updateOB: (id: string, body: UpdateOBRequest) =>
-    serverFetchData<OBUser>(`/api/v1/admin/ob/${id}`, {
+    serverFetchData<OBUser>(`/v1/admin/ob/${id}`, {
       method: "PATCH",
       body: JSON.stringify(body),
     }),
 
-  listOrders: () => serverFetchData<Order[]>("/api/v1/admin/orders"),
+  listOrders: () => serverFetchData<Order[]>("/v1/admin/orders"),
 
   laporan: (month?: string) =>
     serverFetchData<LaporanRow[]>(
-      `/api/v1/admin/laporan${month ? `?month=${month}` : ""}`,
+      `/v1/admin/laporan${month ? `?month=${month}` : ""}`,
     ),
 
-  getConfigs: () => serverFetchData<ConfigItem[]>("/api/v1/config"),
+  getConfigs: () => serverFetchData<ConfigItem[]>("/v1/config"),
 
   setConfig: (key: string, body: SetConfigRequest) =>
-    serverFetchData<ConfigItem>(`/api/v1/admin/config/${key}`, {
+    serverFetchData<ConfigItem>(`/v1/admin/config/${key}`, {
       method: "PUT",
       body: JSON.stringify(body),
     }),

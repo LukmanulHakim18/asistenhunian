@@ -12,7 +12,7 @@ async function OrderPageContent() {
 
   const [services, configs] = await Promise.all([
     servicesApi.list().catch(() => []),
-    apiFetchData<ConfigItem[]>("/api/v1/config").catch(() => [] as ConfigItem[]),
+    apiFetchData<ConfigItem[]>("/v1/config").catch(() => [] as ConfigItem[]),
   ]);
   const activeServices = services.filter((s) => s.is_active);
 
