@@ -5,6 +5,13 @@ import { servicesApi } from "@/lib/api/services";
 import { revalidatePath } from "next/cache";
 import type { CreateOBRequest, UpdateOBRequest, ServiceRequest } from "@/lib/api/types";
 
+// ─── Order management ─────────────────────────────────────────────────────────
+
+export async function assignOBAction(orderId: string, obId: string) {
+  await adminApi.assignOB(orderId, { ob_id: obId });
+  revalidatePath("/admin/orders");
+}
+
 // ─── OB management ───────────────────────────────────────────────────────────
 
 export async function createOBAction(data: CreateOBRequest) {

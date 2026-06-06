@@ -4,12 +4,15 @@ import { AdminOrdersTable } from "@/components/admin/AdminOrdersTable";
 export const dynamic = "force-dynamic";
 
 export default async function AdminOrdersPage() {
-  const orders = await adminApi.listOrders().catch(() => []);
+  const [orders, obList] = await Promise.all([
+    adminApi.listOrders().catch(() => []),
+    adminApi.listOB().catch(() => []),
+  ]);
 
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Semua Order</h1>
-      <AdminOrdersTable orders={orders} />
+      <AdminOrdersTable orders={orders} obList={obList} />
     </div>
   );
 }

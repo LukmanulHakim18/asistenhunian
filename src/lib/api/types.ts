@@ -214,6 +214,10 @@ export interface OBUser extends User {
   email: string;
 }
 
+export interface AssignOBRequest {
+  ob_id: string;
+}
+
 export interface CreateOBRequest {
   email: string;
   full_name: string;

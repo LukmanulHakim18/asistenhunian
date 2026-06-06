@@ -2,6 +2,7 @@ import { serverFetchData } from "./client";
 import type {
   OBUser,
   Order,
+  AssignOBRequest,
   CreateOBRequest,
   UpdateOBRequest,
   LaporanRow,
@@ -30,6 +31,12 @@ export const adminApi = {
     serverFetchData<LaporanRow[]>(
       `/v1/admin/laporan${month ? `?month=${month}` : ""}`,
     ),
+
+  assignOB: (orderId: string, body: AssignOBRequest) =>
+    serverFetchData<Order>(`/v1/admin/orders/${orderId}/assign`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
 
   getConfigs: () => serverFetchData<ConfigItem[]>("/v1/config"),
 
