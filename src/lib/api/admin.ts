@@ -3,7 +3,6 @@ import type {
   OBUser,
   Order,
   AssignOBRequest,
-  ConfirmOrderRequest,
   CreateOBRequest,
   UpdateOBRequest,
   LaporanRow,
@@ -36,12 +35,6 @@ export const adminApi = {
   assignItemOB: (orderId: string, itemId: string, body: AssignOBRequest) =>
     serverFetchData<Order>(`/v1/admin/orders/${orderId}/items/${itemId}/assign`, {
       method: "PATCH",
-      body: JSON.stringify(body),
-    }),
-
-  confirmOrder: (orderId: string, body: ConfirmOrderRequest) =>
-    serverFetchData<Order>(`/v1/admin/orders/${orderId}/confirm`, {
-      method: "POST",
       body: JSON.stringify(body),
     }),
 

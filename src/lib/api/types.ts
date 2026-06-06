@@ -228,15 +228,6 @@ export interface AssignOBRequest {
   ob_id: string;
 }
 
-export interface ConfirmOrderItemAssignment {
-  item_id: string;
-  ob_id: string;
-}
-
-export interface ConfirmOrderRequest {
-  items: ConfirmOrderItemAssignment[];
-}
-
 export interface CreateOBRequest {
   email: string;
   full_name: string;
