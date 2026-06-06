@@ -37,75 +37,35 @@ interface Props {
   obList: OBUser[];
 }
 
-function AssignOBSection({ order, obList }: Props) {
+function StatusSection({ order, obList }: Props) {
   const [selectedOB, setSelectedOB] = useState<string>(order.ob_id ?? "");
-  const [isPending, startTransition] = useTransition();
-  const activeOBs = obList.filter((ob) => ob.is_active);
-  const currentOB = obList.find((ob) => ob.id === order.ob_id) ?? order.ob;
-
-  const handleAssign = () => {
-    if (!selectedOB || selectedOB === order.ob_id) return;
-    startTransition(async () => {
-      try {
-        await assignOBAction(order.id, selectedOB);
-        toast.success("OB berhasil di-assign");
-      } catch {
-        toast.error("Gagal assign OB");
-      }
-    });
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Assign OB</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {currentOB && (
-          <div className="text-sm">
-            <span className="text-muted-foreground">OB saat ini: </span>
-            <span className="font-medium">{currentOB.full_name}</span>
-            {currentOB.phone && (
-              <span className="text-muted-foreground"> · {currentOB.phone}</span>
-            )}
-          </div>
-        )}
-        <div className="flex gap-2">
-          <Select
-            value={selectedOB}
-            onValueChange={(v) => setSelectedOB(v ?? "")}
-            disabled={isPending}
-          >
-            <SelectTrigger className="flex-1">
-              <SelectValue placeholder="Pilih OB..." />
-            </SelectTrigger>
-            <SelectContent>
-              {activeOBs.map((ob) => (
-                <SelectItem key={ob.id} value={ob.id}>
-                  {ob.full_name}
-                  {ob.phone && <span className="text-muted-foreground"> · {ob.phone}</span>}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            onClick={handleAssign}
-            disabled={isPending || !selectedOB || selectedOB === order.ob_id}
-          >
-            {isPending ? "Menyimpan..." : "Assign"}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function StatusSection({ order }: { order: Order }) {
   const [notes, setNotes] = useState("");
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  const updateStatus = (newStatus: OrderStatus) => {
+  const activeOBs = obList.filter((ob) => ob.is_active);
+  const isDone = order.status === "completed" || order.status === "cancelled";
+
+  const handleConfirm = () => {
+    if (!selectedOB) {
+      toast.error("Pilih OB terlebih dahulu");
+      return;
+    }
+    startTransition(async () => {
+      try {
+        // Assign OB dulu, lalu confirm
+        await assignOBAction(order.id, selectedOB);
+        await adminUpdateOrderStatusAction(order.id, "confirmed", notes || undefined);
+        toast.success("Order dikonfirmasi dan OB telah di-assign");
+        setNotes("");
+        router.refresh();
+      } catch {
+        toast.error("Gagal konfirmasi order");
+      }
+    });
+  };
+
+  const handleStatus = (newStatus: OrderStatus) => {
     startTransition(async () => {
       try {
         await adminUpdateOrderStatusAction(order.id, newStatus, notes || undefined);
@@ -118,8 +78,6 @@ function StatusSection({ order }: { order: Order }) {
     });
   };
 
-  const isDone = order.status === "completed" || order.status === "cancelled";
-
   return (
     <Card>
       <CardHeader>
@@ -131,8 +89,38 @@ function StatusSection({ order }: { order: Order }) {
           <OrderStatusBadge status={order.status} />
         </div>
 
+        {order.ob && (
+          <div className="text-sm">
+            <span className="text-muted-foreground">OB: </span>
+            <span className="font-medium">{order.ob.full_name}</span>
+          </div>
+        )}
+
         {!isDone && (
           <>
+            {/* Pilih OB hanya saat pending */}
+            {order.status === "pending" && (
+              <div className="space-y-1">
+                <Label className="text-xs">Pilih OB <span className="text-destructive">*</span></Label>
+                <Select
+                  value={selectedOB}
+                  onValueChange={(v) => setSelectedOB(v ?? "")}
+                  disabled={isPending}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih OB..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeOBs.map((ob) => (
+                      <SelectItem key={ob.id} value={ob.id}>
+                        {ob.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="space-y-1">
               <Label className="text-xs">Catatan (opsional)</Label>
               <Textarea
@@ -142,20 +130,21 @@ function StatusSection({ order }: { order: Order }) {
                 rows={2}
               />
             </div>
+
             <div className="flex flex-wrap gap-2">
               {order.status === "pending" && (
                 <>
                   <Button
                     size="sm"
-                    onClick={() => updateStatus("confirmed")}
-                    disabled={isPending}
+                    onClick={handleConfirm}
+                    disabled={isPending || !selectedOB}
                   >
-                    Konfirmasi Order
+                    {isPending ? "Memproses..." : "Konfirmasi Order"}
                   </Button>
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => updateStatus("cancelled")}
+                    onClick={() => handleStatus("cancelled")}
                     disabled={isPending}
                   >
                     Batalkan
@@ -166,7 +155,7 @@ function StatusSection({ order }: { order: Order }) {
                 <>
                   <Button
                     size="sm"
-                    onClick={() => updateStatus("in_progress")}
+                    onClick={() => handleStatus("in_progress")}
                     disabled={isPending}
                   >
                     Mulai Kerjakan
@@ -174,7 +163,7 @@ function StatusSection({ order }: { order: Order }) {
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => updateStatus("cancelled")}
+                    onClick={() => handleStatus("cancelled")}
                     disabled={isPending}
                   >
                     Batalkan
@@ -184,7 +173,7 @@ function StatusSection({ order }: { order: Order }) {
               {order.status === "in_progress" && (
                 <Button
                   size="sm"
-                  onClick={() => updateStatus("completed")}
+                  onClick={() => handleStatus("completed")}
                   disabled={isPending}
                 >
                   Tandai Selesai
@@ -206,7 +195,6 @@ export function AdminOrderDetail({ order, obList }: Props) {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Kiri: Info Order */}
       <div className="lg:col-span-2 space-y-4">
-        {/* Customer & order info */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Informasi Order</CardTitle>
@@ -251,7 +239,6 @@ export function AdminOrderDetail({ order, obList }: Props) {
                 </span>
               </span>
             </div>
-
             {order.customer_notes && (
               <div className="bg-muted rounded p-2 text-xs">
                 <span className="font-medium">Catatan customer:</span> {order.customer_notes}
@@ -260,7 +247,6 @@ export function AdminOrderDetail({ order, obList }: Props) {
           </CardContent>
         </Card>
 
-        {/* Items + pricing */}
         {order.items && order.items.length > 0 && (
           <Card>
             <CardHeader>
@@ -295,7 +281,6 @@ export function AdminOrderDetail({ order, obList }: Props) {
           </Card>
         )}
 
-        {/* Status history */}
         {order.status_history && order.status_history.length > 0 && (
           <Card>
             <CardHeader>
@@ -345,8 +330,7 @@ export function AdminOrderDetail({ order, obList }: Props) {
           </CardContent>
         </Card>
 
-        <AssignOBSection order={order} obList={obList} />
-        <StatusSection order={order} />
+        <StatusSection order={order} obList={obList} />
       </div>
     </div>
   );
