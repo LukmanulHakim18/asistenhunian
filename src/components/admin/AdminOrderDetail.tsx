@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { OrderStatusBadge } from "@/components/ob/OrderStatusBadge";
 import { formatCurrency, formatDate, formatDateTime, ORDER_STATUS_LABEL } from "@/lib/utils";
-import { assignItemOBAction, adminUpdateOrderStatusAction } from "@/lib/actions/admin";
+import { assignItemOBAction, adminUpdateOrderStatusAction, confirmOrderAction } from "@/lib/actions/admin";
 import { toast } from "sonner";
 import type { Order, OBUser, OrderStatus, OrderItem } from "@/lib/api/types";
 import { CheckCircle, Clock, Loader, XCircle } from "lucide-react";
@@ -51,6 +51,141 @@ interface Props {
   obList: OBUser[];
 }
 
+// Controlled item row used when building the confirm payload (pending orders)
+function PendingItemRow({
+  item,
+  obList,
+  obId,
+  onObChange,
+  isError,
+}: {
+  item: OrderItem;
+  obList: OBUser[];
+  obId: string;
+  onObChange: (v: string) => void;
+  isError: boolean;
+}) {
+  const activeOBs = obList.filter((ob) => ob.is_active);
+  return (
+    <div className={`py-3 border-b last:border-0 ${isError ? "rounded bg-red-50" : ""}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-sm">{item.service_name} × {item.quantity}</p>
+          <p className="text-sm text-muted-foreground">{formatCurrency(item.subtotal)}</p>
+          {isError && (
+            <p className="text-xs text-red-600 mt-1">Wajib pilih OB</p>
+          )}
+        </div>
+        <Select value={obId} onValueChange={(v) => onObChange(v ?? "")}>
+          <SelectTrigger className={`h-8 w-36 text-xs ${isError ? "border-red-500" : ""}`}>
+            <SelectValue placeholder="Pilih OB...">
+              {obId ? (activeOBs.find((ob) => ob.id === obId)?.full_name ?? "Pilih OB...") : "Pilih OB..."}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {activeOBs.map((ob) => (
+              <SelectItem key={ob.id} value={ob.id}>
+                {ob.full_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
+
+// Bulk assign + confirm section — only rendered for pending orders
+function ConfirmOrderSection({ order, obList }: { order: Order; obList: OBUser[] }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [assignments, setAssignments] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    order.items?.forEach((item) => { if (item.ob_id) init[item.id] = item.ob_id; });
+    return init;
+  });
+  const [errorItemId, setErrorItemId] = useState<string | null>(null);
+
+  const platformFee = order.platform_fee ?? 0;
+  const itemsSubtotal = order.items?.reduce((s, i) => s + i.subtotal, 0) ?? order.subtotal ?? 0;
+
+  const handleConfirm = () => {
+    const missingItem = order.items?.find((item) => !assignments[item.id]);
+    if (missingItem) {
+      setErrorItemId(missingItem.id);
+      toast.error(`Pilih OB untuk "${missingItem.service_name}"`);
+      return;
+    }
+    setErrorItemId(null);
+    startTransition(async () => {
+      try {
+        const items = (order.items ?? []).map((item) => ({
+          item_id: item.id,
+          ob_id: assignments[item.id],
+        }));
+        await confirmOrderAction(order.id, items);
+        toast.success("Order dikonfirmasi");
+        router.refresh();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "";
+        // Server returns: "item <uuid> belum mendapat OB"
+        const match = msg.match(/item ([0-9a-f-]+) belum mendapat OB/);
+        if (match) {
+          setErrorItemId(match[1]);
+          toast.error("Satu item belum mendapat OB");
+        } else {
+          toast.error("Gagal mengkonfirmasi order");
+        }
+      }
+    });
+  };
+
+  return (
+    <div>
+      <div>
+        {(order.items ?? []).map((item) => (
+          <PendingItemRow
+            key={item.id}
+            item={item}
+            obList={obList}
+            obId={assignments[item.id] ?? ""}
+            onObChange={(v) => {
+              setAssignments((prev) => ({ ...prev, [item.id]: v }));
+              if (errorItemId === item.id) setErrorItemId(null);
+            }}
+            isError={errorItemId === item.id}
+          />
+        ))}
+      </div>
+      <div className="pt-3 space-y-1 text-sm">
+        {platformFee > 0 && (
+          <>
+            <div className="flex justify-between text-muted-foreground">
+              <span>Subtotal</span>
+              <span>{formatCurrency(itemsSubtotal)}</span>
+            </div>
+            <div className="flex justify-between text-muted-foreground">
+              <span>Platform Fee</span>
+              <span>{formatCurrency(platformFee)}</span>
+            </div>
+            <Separator />
+          </>
+        )}
+        <div className="flex justify-between font-bold">
+          <span>Total</span>
+          <span>{formatCurrency(order.total)}</span>
+        </div>
+      </div>
+      <div className="pt-4">
+        <Button onClick={handleConfirm} disabled={isPending} className="w-full">
+          {isPending ? "Mengkonfirmasi..." : "Konfirmasi Order"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// Per-item assign row — used for non-pending orders where OB re-assignment is still allowed
 function ItemAssignRow({ orderId, item, obList }: { orderId: string; item: OrderItem; obList: OBUser[] }) {
   const [selectedOB, setSelectedOB] = useState<string>(item.ob_id ?? "");
   const [isPending, startTransition] = useTransition();
@@ -95,7 +230,9 @@ function ItemAssignRow({ orderId, item, obList }: { orderId: string; item: Order
               disabled={isPending}
             >
               <SelectTrigger className="h-8 w-36 text-xs">
-                <SelectValue placeholder="Pilih OB..." />
+                <SelectValue placeholder="Pilih OB...">
+                  {selectedOB ? (activeOBs.find((ob) => ob.id === selectedOB)?.full_name ?? "Pilih OB...") : "Pilih OB..."}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {activeOBs.map((ob) => (
@@ -223,42 +360,48 @@ export function AdminOrderDetail({ order, obList }: Props) {
           </CardContent>
         </Card>
 
-        {/* Items + assign OB per item */}
         {order.items && order.items.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Layanan & Assign OB</CardTitle>
+              <CardTitle className="text-base">
+                {order.status === "pending" ? "Assign OB & Konfirmasi" : "Layanan & Assign OB"}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div>
-                {order.items.map((item) => (
-                  <ItemAssignRow key={item.id} orderId={order.id} item={item} obList={obList} />
-                ))}
-              </div>
-              <div className="pt-3 space-y-1 text-sm">
-                {platformFee > 0 && (
-                  <>
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Subtotal</span>
-                      <span>{formatCurrency(itemsSubtotal)}</span>
+              {order.status === "pending" ? (
+                <ConfirmOrderSection order={order} obList={obList} />
+              ) : (
+                <>
+                  <div>
+                    {order.items.map((item) => (
+                      <ItemAssignRow key={item.id} orderId={order.id} item={item} obList={obList} />
+                    ))}
+                  </div>
+                  <div className="pt-3 space-y-1 text-sm">
+                    {platformFee > 0 && (
+                      <>
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Subtotal</span>
+                          <span>{formatCurrency(itemsSubtotal)}</span>
+                        </div>
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Platform Fee</span>
+                          <span>{formatCurrency(platformFee)}</span>
+                        </div>
+                        <Separator />
+                      </>
+                    )}
+                    <div className="flex justify-between font-bold">
+                      <span>Total</span>
+                      <span>{formatCurrency(order.total)}</span>
                     </div>
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Platform Fee</span>
-                      <span>{formatCurrency(platformFee)}</span>
-                    </div>
-                    <Separator />
-                  </>
-                )}
-                <div className="flex justify-between font-bold">
-                  <span>Total</span>
-                  <span>{formatCurrency(order.total)}</span>
-                </div>
-              </div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         )}
 
-        {/* Status history */}
         {order.status_history && order.status_history.length > 0 && (
           <Card>
             <CardHeader>

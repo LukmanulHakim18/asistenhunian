@@ -13,6 +13,15 @@ export async function assignItemOBAction(orderId: string, itemId: string, obId: 
   revalidatePath(`/admin/orders/${orderId}`);
 }
 
+export async function confirmOrderAction(
+  orderId: string,
+  items: import("@/lib/api/types").ConfirmOrderItemAssignment[],
+) {
+  await adminApi.confirmOrder(orderId, { items });
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+}
+
 export async function adminUpdateOrderStatusAction(
   orderId: string,
   status: import("@/lib/api/types").OrderStatus,
