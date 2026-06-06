@@ -21,6 +21,7 @@ export interface User {
   role: UserRole;
   unit_number: string | null;
   is_active: boolean;
+  email_verified: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -41,6 +42,15 @@ export interface RegisterRequest {
   password: string;
   phone?: string;
   unit_number?: string;
+}
+
+export interface VerifyEmailRequest {
+  email: string;
+  otp: string;
+}
+
+export interface ResendVerificationRequest {
+  email: string;
 }
 
 export interface ForgotPasswordRequest {

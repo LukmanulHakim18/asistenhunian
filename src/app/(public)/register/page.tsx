@@ -43,8 +43,8 @@ export default function RegisterPage() {
           password,
         }),
       });
-      toast.success("Akun berhasil dibuat! Silakan masuk.");
-      router.push("/login");
+      toast.success("Akun berhasil dibuat! Cek email untuk kode verifikasi.");
+      router.push(`/verify-email?email=${encodeURIComponent(email)}`);
     } catch (err) {
       const message =
         err instanceof ApiError ? err.message : "Terjadi kesalahan, coba lagi";
