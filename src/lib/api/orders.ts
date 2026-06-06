@@ -7,9 +7,9 @@ import type {
 } from "./types";
 
 export const ordersApi = {
-  /** Public — no auth required. */
+  /** Server-side — reads JWT cookie to associate order with customer_id. */
   create: (body: CreateOrderRequest) =>
-    apiFetchData<CreateOrderResponse>("/v1/orders", {
+    serverFetchData<CreateOrderResponse>("/v1/orders", {
       method: "POST",
       body: JSON.stringify(body),
     }),

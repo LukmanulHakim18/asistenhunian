@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { apiFetchData, ApiError } from "@/lib/api/client";
-import type { CreateOrderRequest, CreateOrderResponse, PaymentMethod, Service, User } from "@/lib/api/types";
+import { ApiError } from "@/lib/api/client";
+import { createOrderAction } from "@/lib/actions/orders";
+import type { CreateOrderRequest, PaymentMethod, Service, User } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -121,10 +122,7 @@ export function OrderForm({ allServices, platformFee = 0 }: OrderFormProps) {
       };
       if (preferredTimeNote) payload.preferred_time_note = preferredTimeNote;
 
-      const result = await apiFetchData<CreateOrderResponse>("/v1/orders", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      const result = await createOrderAction(payload);
 
       router.push(`/order/${result.order_number}/success`);
     } catch (err) {
