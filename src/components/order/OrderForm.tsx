@@ -165,42 +165,34 @@ export function OrderForm({ allServices, platformFee = 0 }: OrderFormProps) {
           { n: 3 as const, label: "Konfirmasi" },
         ];
         return (
-          <div className="w-full mb-8">
-            <div className="flex items-center w-full">
-              {steps.map(({ n }, idx) => (
-                <div key={n} className="flex items-center flex-1 last:flex-none">
-                  <div className="flex flex-col items-center shrink-0">
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
-                        step === n
-                          ? "bg-primary text-primary-foreground"
-                          : step > n
-                            ? "bg-green-500 text-white"
-                            : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {step > n ? "✓" : n}
-                    </div>
-                  </div>
-                  {idx < steps.length - 1 && (
-                    <div
-                      className={`flex-1 h-1 mx-2 rounded transition-colors ${
-                        step > n ? "bg-green-500" : "bg-muted"
-                      }`}
-                    />
-                  )}
-                </div>
-              ))}
+          <div className="relative w-full mb-8">
+            {/* Connector lines — from center col-1 to center col-3 */}
+            <div className="absolute top-4 left-[16.67%] right-[16.67%] flex -translate-y-1/2">
+              <div className={`flex-1 h-1 transition-colors ${step > 1 ? "bg-green-500" : "bg-muted"}`} />
+              <div className={`flex-1 h-1 transition-colors ${step > 2 ? "bg-green-500" : "bg-muted"}`} />
             </div>
-            <div className="flex w-full mt-2">
+            {/* Circles + labels */}
+            <div className="relative z-10 flex">
               {steps.map(({ n, label }) => (
-                <div
-                  key={n}
-                  className={`flex-1 text-center text-xs font-medium transition-colors last:flex-none last:w-8 ${
-                    step === n ? "text-primary" : step > n ? "text-green-600" : "text-muted-foreground"
-                  }`}
-                >
-                  {label}
+                <div key={n} className="flex-1 flex flex-col items-center gap-2">
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-background transition-colors ${
+                      step === n
+                        ? "bg-primary text-primary-foreground"
+                        : step > n
+                          ? "bg-green-500 text-white"
+                          : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {step > n ? "✓" : n}
+                  </div>
+                  <span
+                    className={`text-xs font-medium text-center transition-colors ${
+                      step === n ? "text-primary" : step > n ? "text-green-600" : "text-muted-foreground"
+                    }`}
+                  >
+                    {label}
+                  </span>
                 </div>
               ))}
             </div>
