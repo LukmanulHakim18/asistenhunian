@@ -50,9 +50,6 @@ interface Props {
 export function OrderList({ orders }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>(() => getDefaultTab(orders));
 
-  const countFor = (tab: Tab) =>
-    orders.filter((o) => TAB_CONFIG[tab].statuses.includes(o.status)).length;
-
   const filtered = orders.filter((o) =>
     TAB_CONFIG[activeTab].statuses.includes(o.status)
   );
@@ -62,7 +59,6 @@ export function OrderList({ orders }: Props) {
       {/* Tab bar */}
       <div className="grid grid-cols-3 gap-1 bg-muted rounded-lg p-1">
         {(Object.keys(TAB_CONFIG) as Tab[]).map((tab) => {
-          const count = countFor(tab);
           const isActive = activeTab === tab;
           return (
             <button
@@ -77,18 +73,6 @@ export function OrderList({ orders }: Props) {
               ].join(" ")}
             >
               <span className="truncate">{TAB_CONFIG[tab].label}</span>
-              {count > 0 && (
-                <span
-                  className={[
-                    "inline-flex items-center justify-center rounded-full text-xs font-semibold min-w-[18px] h-[18px] px-1",
-                    isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted-foreground/20 text-muted-foreground",
-                  ].join(" ")}
-                >
-                  {count}
-                </span>
-              )}
             </button>
           );
         })}
