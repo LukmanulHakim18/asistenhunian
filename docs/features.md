@@ -195,6 +195,92 @@ Role admin/ob:
 
 ---
 
+### FEAT-002: Category Horizontal Scroll di Halaman Order
+
+**Status**: ✅ Done
+**Dimulai**: 2026-06-07
+**Selesai**: 2026-06-07
+**Dikerjakan oleh**: Claude
+
+#### Deskripsi
+
+Halaman `/order` Step 1 menampilkan semua layanan dalam satu list vertikal panjang tanpa filter kategori, memaksa user scroll jauh ke bawah. Fitur ini menambahkan horizontal scroll pill kategori di atas list layanan sehingga user bisa memfilter per kategori tanpa scroll.
+
+#### Specs
+
+**File yang diubah**:
+- `src/components/order/OrderForm.tsx` — satu-satunya file yang perlu diubah
+
+**Tidak ada file baru, tidak ada API baru.**
+
+**Data yang sudah tersedia**:
+- `allServices` prop sudah bertipe `ServiceWithCategory[]` (field `category` ada, hanya belum dipakai)
+- Kategori di-derive langsung dari `allServices` — tidak perlu fetch tambahan
+- `category_id` pada setiap service sudah tersedia untuk filtering
+
+**State baru**:
+- `activeCategory: string` — default `"all"`, diubah saat user klik pill
+
+**Logika derive kategori** (dari services, deduplicated):
+```ts
+const categories = useMemo(() =>
+  allServices
+    .map(s => s.category)
+    .filter((c, i, arr): c is ServiceCategory =>
+      c !== null && arr.findIndex(x => x?.id === c.id) === i
+    )
+    .sort((a, b) => a.sort_order - b.sort_order),
+  [allServices]
+);
+```
+
+**Logika filter**:
+```ts
+const filteredAvailableServices = allServices
+  .filter(s => !items.find(i => i.service.id === s.id))
+  .filter(s => activeCategory === "all" || s.category_id === activeCategory);
+```
+
+**UI horizontal scroll** (di atas card "Tambah Layanan Lain"):
+- `div` dengan `flex overflow-x-auto gap-2 pb-2` + `scrollbar-hide` (atau scrollbar tipis)
+- Pill: `whitespace-nowrap rounded-full px-4 py-1.5 text-sm` — aktif: `bg-primary text-primary-foreground`, tidak aktif: `border border-border`
+- Pertama selalu "Semua"
+
+**Acceptance criteria**:
+- [ ] Pill kategori muncul di atas list layanan Step 1
+- [ ] Pill bisa di-scroll horizontal tanpa mempengaruhi scroll vertikal halaman
+- [ ] Klik pill → list layanan terfilter sesuai kategori
+- [ ] Pill "Semua" menampilkan semua layanan yang belum dipilih
+- [ ] Jika service tidak punya kategori, tetap muncul saat "Semua" aktif
+- [ ] Pill tidak muncul jika hanya ada 1 atau 0 kategori (tidak perlu filter)
+- [ ] Tidak ada TypeScript error
+
+#### Phases & Checklist
+
+**Phase 1 — Persiapan**
+- [x] Baca `OrderForm.tsx` — konfirmasi prop type dan struktur Step 1
+- [x] Konfirmasi `ServiceWithCategory` sudah punya field `category: ServiceCategory | null`
+- [x] Konfirmasi `useMemo` tersedia (React import sudah ada)
+
+**Phase 2 — Implementasi**
+- [x] Import `useMemo` dan `ServiceWithCategory` di `OrderForm.tsx`
+- [x] Ubah prop type `allServices: Service[]` → `allServices: ServiceWithCategory[]`
+- [x] Tambah state `activeCategory`
+- [x] Tambah `useMemo` untuk derive `categories` dari `allServices`
+- [x] Tambah `useMemo` untuk `filteredAvailableServices`
+- [x] Render horizontal scroll pill sebelum card "Tambah Layanan Lain"
+- [x] Pill hanya render jika `categories.length > 1`
+- [x] Ganti list di card "Tambah Layanan Lain" pakai `filteredAvailableServices`
+
+**Phase 3 — Verifikasi**
+- [x] `npm run build` — tidak ada TypeScript error
+- [ ] Test manual: pill muncul, klik filter, scroll horizontal
+- [ ] Test: service yang sudah dipilih tidak muncul di bawah kategori manapun
+- [ ] Test: pill hilang jika semua service satu kategori / tidak ada kategori
+- [x] Update `docs/features.md` → status Done
+
+---
+
 ## Completed Features
 
 <!-- Fitur yang sudah selesai. Pindahkan dari Active setelah semua checklist [x]. -->

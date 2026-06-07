@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ApiError } from "@/lib/api/client";
 import { createOrderAction } from "@/lib/actions/orders";
-import type { CreateOrderRequest, PaymentMethod, Service, User } from "@/lib/api/types";
+import type { CreateOrderRequest, PaymentMethod, ServiceWithCategory, User } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,12 +22,12 @@ import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface OrderItem {
-  service: Service;
+  service: ServiceWithCategory;
   quantity: number;
 }
 
 interface OrderFormProps {
-  allServices: Service[];
+  allServices: ServiceWithCategory[];
   platformFee?: number;
 }
 
@@ -36,6 +36,7 @@ type Step = 1 | 2 | 3;
 export function OrderForm({ allServices, platformFee = 0 }: OrderFormProps) {
   const [step, setStep] = useState<Step>(1);
   const [loading, setLoading] = useState(false);
+  const [activeCategory, setActiveCategory] = useState("all");
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -79,6 +80,23 @@ export function OrderForm({ allServices, platformFee = 0 }: OrderFormProps) {
   );
   const grandTotal = subtotal + platformFee;
 
+  const categories = useMemo(() =>
+    allServices
+      .map((s) => s.category)
+      .filter((c, i, arr): c is NonNullable<typeof c> =>
+        c !== null && arr.findIndex((x) => x?.id === c.id) === i
+      )
+      .sort((a, b) => a.sort_order - b.sort_order),
+    [allServices]
+  );
+
+  const filteredAvailableServices = useMemo(() =>
+    allServices
+      .filter((s) => !items.find((i) => i.service.id === s.id))
+      .filter((s) => activeCategory === "all" || s.category_id === activeCategory),
+    [allServices, items, activeCategory]
+  );
+
   const updateQuantity = (serviceId: string, delta: number) => {
     setItems((prev) =>
       prev
@@ -91,7 +109,7 @@ export function OrderForm({ allServices, platformFee = 0 }: OrderFormProps) {
     );
   };
 
-  const addService = (service: Service) => {
+  const addService = (service: ServiceWithCategory) => {
     setItems((prev) => {
       const existing = prev.find((i) => i.service.id === service.id);
       if (existing) {
@@ -218,14 +236,37 @@ export function OrderForm({ allServices, platformFee = 0 }: OrderFormProps) {
             </Card>
           )}
 
+          {categories.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
+              {[{ id: "all", name: "Semua" }, ...categories].map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setActiveCategory(cat.id)}
+                  className={[
+                    "whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium shrink-0 transition-colors",
+                    activeCategory === cat.id
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border bg-background text-foreground hover:bg-accent",
+                  ].join(" ")}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+          )}
+
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Tambah Layanan Lain</CardTitle>
+              <CardTitle className="text-base">Tambah Layanan</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {allServices
-                .filter((s) => !items.find((i) => i.service.id === s.id))
-                .map((service) => (
+              {filteredAvailableServices.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2 text-center">
+                  Semua layanan di kategori ini sudah dipilih.
+                </p>
+              ) : (
+                filteredAvailableServices.map((service) => (
                   <div key={service.id} className="flex items-center justify-between py-2">
                     <div>
                       <p className="font-medium">{service.name}</p>
@@ -235,7 +276,8 @@ export function OrderForm({ allServices, platformFee = 0 }: OrderFormProps) {
                       + Tambah
                     </Button>
                   </div>
-                ))}
+                ))
+              )}
             </CardContent>
           </Card>
 
