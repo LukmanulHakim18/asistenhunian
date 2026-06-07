@@ -158,35 +158,55 @@ export function OrderForm({ allServices, platformFee = 0 }: OrderFormProps) {
   return (
     <div className="max-w-2xl mx-auto">
       {/* Step Indicator */}
-      <div className="flex items-center gap-2 mb-8">
-        {([1, 2, 3] as const).map((s) => (
-          <div key={s} className="flex items-center">
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
-                step === s
-                  ? "bg-primary text-primary-foreground"
-                  : step > s
-                    ? "bg-green-500 text-white"
-                    : "bg-muted text-muted-foreground"
-              }`}
-            >
-              {step > s ? "✓" : s}
+      {(() => {
+        const steps = [
+          { n: 1 as const, label: "Pilih Layanan" },
+          { n: 2 as const, label: "Data & Jadwal" },
+          { n: 3 as const, label: "Konfirmasi" },
+        ];
+        return (
+          <div className="w-full mb-8">
+            <div className="flex items-center w-full">
+              {steps.map(({ n }, idx) => (
+                <div key={n} className="flex items-center flex-1 last:flex-none">
+                  <div className="flex flex-col items-center shrink-0">
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
+                        step === n
+                          ? "bg-primary text-primary-foreground"
+                          : step > n
+                            ? "bg-green-500 text-white"
+                            : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {step > n ? "✓" : n}
+                    </div>
+                  </div>
+                  {idx < steps.length - 1 && (
+                    <div
+                      className={`flex-1 h-1 mx-2 rounded transition-colors ${
+                        step > n ? "bg-green-500" : "bg-muted"
+                      }`}
+                    />
+                  )}
+                </div>
+              ))}
             </div>
-            {s < 3 && (
-              <div
-                className={`h-1 w-16 mx-1 rounded ${
-                  step > s ? "bg-green-500" : "bg-muted"
-                }`}
-              />
-            )}
+            <div className="flex w-full mt-2">
+              {steps.map(({ n, label }) => (
+                <div
+                  key={n}
+                  className={`flex-1 text-center text-xs font-medium transition-colors last:flex-none last:w-8 ${
+                    step === n ? "text-primary" : step > n ? "text-green-600" : "text-muted-foreground"
+                  }`}
+                >
+                  {label}
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
-        <div className="ml-4 text-sm text-muted-foreground">
-          {step === 1 && "Pilih Layanan"}
-          {step === 2 && "Data & Jadwal"}
-          {step === 3 && "Konfirmasi"}
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Step 1: Pilih Layanan */}
       {step === 1 && (
