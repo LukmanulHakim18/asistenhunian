@@ -52,16 +52,19 @@ export async function updateOBAction(id: string, data: UpdateOBRequest) {
 export async function createServiceAction(data: ServiceRequest) {
   const service = await servicesApi.create(data);
   revalidatePath("/admin/catalog");
+  revalidatePath("/");
   return service;
 }
 
 export async function updateServiceAction(id: string, data: Partial<ServiceRequest>) {
   const service = await servicesApi.update(id, data);
   revalidatePath("/admin/catalog");
+  revalidatePath("/");
   return service;
 }
 
 export async function deleteServiceAction(id: string) {
   await servicesApi.delete(id);
   revalidatePath("/admin/catalog");
+  revalidatePath("/");
 }
