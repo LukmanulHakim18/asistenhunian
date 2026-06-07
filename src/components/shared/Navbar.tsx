@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Sparkles, User, LogOut } from "lucide-react";
+import { Sparkles, User, LogOut, Menu, LayoutDashboard } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -61,40 +61,38 @@ export function Navbar() {
 
         <div className="flex items-center gap-3">
           {session ? (
-            <>
-              <Link
-                href={getDashboardLink()}
-                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-              >
-                Dashboard
-              </Link>
-              <DropdownMenu>
-                <DropdownMenuTrigger className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors outline-none">
-                  <User className="h-4 w-4" />
-                  <span className="max-w-[120px] truncate">{session.name}</span>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44">
-                  {session.role === "customer" && (
-                    <DropdownMenuItem
-                      onClick={() => router.push("/profile")}
-                      className="cursor-pointer"
-                    >
-                      <User className="h-4 w-4" />
-                      Profil
-                    </DropdownMenuItem>
-                  )}
-                  {session.role === "customer" && <DropdownMenuSeparator />}
+            <DropdownMenu>
+              <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md p-2 hover:bg-accent hover:text-accent-foreground transition-colors outline-none">
+                <Menu className="h-5 w-5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  onClick={() => router.push(getDashboardLink())}
+                  className="cursor-pointer"
+                >
+                  <LayoutDashboard className="h-4 w-4" />
+                  Dashboard
+                </DropdownMenuItem>
+                {session.role === "customer" && (
                   <DropdownMenuItem
-                    onClick={handleSignOut}
-                    variant="destructive"
+                    onClick={() => router.push("/profile")}
                     className="cursor-pointer"
                   >
-                    <LogOut className="h-4 w-4" />
-                    Keluar
+                    <User className="h-4 w-4" />
+                    Profil
                   </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleSignOut}
+                  variant="destructive"
+                  className="cursor-pointer"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Keluar
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
             <Link
               href="/login"
