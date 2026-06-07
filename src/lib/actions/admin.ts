@@ -15,13 +15,9 @@ export async function assignItemOBAction(orderId: string, itemId: string, obId: 
 
 export async function confirmOrderAction(
   orderId: string,
-  items: { item_id: string; ob_id: string }[],
+  items: import("@/lib/api/types").ConfirmOrderItemAssignment[],
 ) {
-  const { ordersApi } = await import("@/lib/api/orders");
-  await Promise.all(
-    items.map(({ item_id, ob_id }) => adminApi.assignItemOB(orderId, item_id, { ob_id }))
-  );
-  await ordersApi.updateStatus(orderId, { status: "confirmed" });
+  await adminApi.confirmOrder(orderId, { items });
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${orderId}`);
 }
