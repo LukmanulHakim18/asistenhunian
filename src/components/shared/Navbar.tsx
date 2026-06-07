@@ -1,9 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { Sparkles, User, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import type { UserRole } from "@/lib/api/types";
@@ -61,9 +68,32 @@ export function Navbar() {
               >
                 Dashboard
               </Link>
-              <Button variant="ghost" size="sm" onClick={handleSignOut}>
-                Keluar
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors outline-none">
+                  <User className="h-4 w-4" />
+                  <span className="max-w-[120px] truncate">{session.name}</span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  {session.role === "customer" && (
+                    <DropdownMenuItem
+                      onClick={() => router.push("/profile")}
+                      className="cursor-pointer"
+                    >
+                      <User className="h-4 w-4" />
+                      Profil
+                    </DropdownMenuItem>
+                  )}
+                  {session.role === "customer" && <DropdownMenuSeparator />}
+                  <DropdownMenuItem
+                    onClick={handleSignOut}
+                    variant="destructive"
+                    className="cursor-pointer"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Keluar
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           ) : (
             <Link
