@@ -281,6 +281,89 @@ const filteredAvailableServices = allServices
 
 ---
 
+### FEAT-003: Dashboard Customer — Tab Filter & Row Clickable
+
+**Status**: ✅ Done
+**Dimulai**: 2026-06-07
+**Selesai**: 2026-06-07
+**Dikerjakan oleh**: Claude
+
+#### Deskripsi
+
+Halaman `/dashboard` customer saat ini menampilkan semua order dalam satu list tanpa filter, dan navigasi ke detail menggunakan tombol "Detail" kecil. Fitur ini menambahkan tab filter (Dijadwalkan / Sedang Dikerjakan / Riwayat) dan membuat seluruh card row bisa diklik — tombol "Detail" dihapus.
+
+#### Analisis API
+
+`GET /v1/orders` sudah mengembalikan semua order customer dengan field `status`. **Tidak perlu endpoint baru.** Filtering dilakukan client-side dari data yang sudah di-fetch server-side.
+
+#### Specs
+
+**File yang diubah**:
+- `src/app/(customer)/dashboard/page.tsx` — hapus render inline, pass `orders` ke `<OrderList>`
+
+**File baru**:
+- `src/components/customer/OrderList.tsx` — Client Component, handle tab + filter + card clickable
+
+**Tab grouping**:
+| Tab | Label UI | Status yang masuk |
+|-----|----------|-------------------|
+| `scheduled` | Dijadwalkan | `pending`, `confirmed` |
+| `progress` | Sedang Dikerjakan | `in_progress` |
+| `history` | Riwayat | `completed`, `cancelled` |
+
+**State**:
+- `activeTab: "scheduled" | "progress" | "history"` — default ke tab yang punya order (cek urutan: progress → scheduled → history)
+
+**Tab bar**:
+- 3 tab button sejajar, full width (`grid grid-cols-3`)
+- Tiap tab tampilkan jumlah order sebagai badge kecil
+- Tab kosong tetap tampil tapi muted, tidak disabled
+
+**Card row**:
+- Seluruh card dibungkus `<Link href="/order/{order_number}/track">`
+- Hover state: `hover:bg-accent/50 transition-colors`
+- Hapus tombol "Detail"
+- Tampilan info tetap sama: order_number, tanggal, total, payment, status badge
+
+**Empty state per tab**:
+- Pesan berbeda tiap tab (bukan satu pesan generik)
+
+**Acceptance criteria**:
+- [ ] Tab "Dijadwalkan" menampilkan order `pending` + `confirmed`
+- [ ] Tab "Sedang Dikerjakan" menampilkan order `in_progress`
+- [ ] Tab "Riwayat" menampilkan order `completed` + `cancelled`
+- [ ] Badge count di tiap tab akurat
+- [ ] Klik seluruh card → navigasi ke `/order/:order_number/track`
+- [ ] Tombol "Detail" tidak ada lagi
+- [ ] Default tab adalah tab yang punya order terbanyak / progress dulu
+- [ ] Empty state per tab berbeda pesannya
+- [ ] Tidak ada TypeScript error
+
+#### Phases & Checklist
+
+**Phase 1 — Buat `OrderList.tsx`**
+- [ ] Buat file `src/components/customer/OrderList.tsx`
+- [ ] Import: `useState`, `Link`, `Order` type, `OrderStatusBadge`, `formatCurrency`, `formatDate`
+- [ ] Define `TAB_CONFIG` mapping tab → status array + label + empty message
+- [ ] Default tab logic: `in_progress` ada → "progress", else `pending/confirmed` ada → "scheduled", else "history"
+- [ ] Render tab bar: `grid grid-cols-3`, tiap tab punya label + badge count
+- [ ] Render filtered orders sebagai `<Link>` yang membungkus `<Card>`
+- [ ] Render empty state per tab
+
+**Phase 2 — Update `dashboard/page.tsx`**
+- [ ] Import `OrderList`
+- [ ] Hapus import yang tidak lagi dipakai (`buttonVariants` untuk Detail, dll)
+- [ ] Ganti blok render order list dengan `<OrderList orders={orders} />`
+- [ ] Pastikan empty state "belum ada order sama sekali" tetap ada (di page level, sebelum OrderList)
+
+**Phase 3 — Verifikasi**
+- [ ] `npm run build` — tidak ada TypeScript error
+- [ ] Test: tab switch, count badge, klik card navigate
+- [ ] Test: empty state tiap tab
+- [ ] Update `docs/features.md` → status Done
+
+---
+
 ## Completed Features
 
 <!-- Fitur yang sudah selesai. Pindahkan dari Active setelah semua checklist [x]. -->
