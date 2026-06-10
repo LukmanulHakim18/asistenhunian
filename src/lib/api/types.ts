@@ -150,6 +150,7 @@ export interface Order {
   total: number;
   platform_fee: number;
   notes: string | null;
+  customer_notes: string | null;
   invoice_pdf_url: string | null;
   invoice_sent_at: string | null;
   midtrans_transaction_id: string | null;
@@ -254,7 +255,15 @@ export interface UpdateOBRequest {
 export interface LaporanRow {
   month: string;
   total_orders: number;
+  completed_orders: number;
   total_revenue: number;
   cash_revenue: number;
   transfer_revenue: number;
+  qris_revenue: number;
+}
+
+export interface UserFilters {
+  role?: UserRole | "all";
+  is_active?: boolean | "all";
+  search?: string;
 }

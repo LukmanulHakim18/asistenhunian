@@ -9,6 +9,8 @@ import type {
   LaporanRow,
   ConfigItem,
   SetConfigRequest,
+  User,
+  UserFilters,
 } from "./types";
 
 export const adminApi = {
@@ -44,6 +46,15 @@ export const adminApi = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  listUsers: (filters?: UserFilters) => {
+    const params = new URLSearchParams();
+    if (filters?.role && filters.role !== "all") params.set("role", filters.role);
+    if (filters?.is_active !== undefined && filters.is_active !== "all")
+      params.set("is_active", String(filters.is_active));
+    const qs = params.toString();
+    return serverFetchData<User[]>(`/v1/admin/users${qs ? `?${qs}` : ""}`);
+  },
 
   getConfigs: () => serverFetchData<ConfigItem[]>("/v1/config"),
 

@@ -364,6 +364,64 @@ Halaman `/dashboard` customer saat ini menampilkan semua order dalam satu list t
 
 ---
 
+### FEAT-004: Admin — Halaman Kelola User
+
+**Status**: 🟡 In Progress
+**Dimulai**: 2026-06-11
+**Selesai**: —
+**Dikerjakan oleh**: Claude
+
+#### Deskripsi
+
+Menu admin belum punya halaman untuk melihat dan memfilter daftar user (customer, OB, admin). Fitur ini menambahkan route `/admin/users` dengan tabel user dan filter berdasarkan role, status aktif, dan pencarian nama/email.
+
+#### Specs
+
+**Affected routes**:
+- `/admin/users` — halaman baru
+
+**API endpoints yang digunakan**:
+- `GET /v1/admin/users` — list semua user, dengan query params: `role`, `is_active`, `search`
+
+**Komponen baru**:
+- `src/components/admin/UserManager.tsx` — Client Component: tabel user + filter UI
+
+**File yang diubah**:
+- `src/lib/api/admin.ts` — tambah `listUsers(filters?)`
+- `src/lib/api/types.ts` — tambah type `UserFilters`
+- `src/components/admin/AdminSidebar.tsx` — tambah link "Kelola User"
+
+**State / data flow**:
+- Server Component fetch semua user (tanpa filter) → pass ke `UserManager`
+- `UserManager` handle filter client-side: role, is_active, search text
+
+**Acceptance criteria**:
+- [ ] Halaman `/admin/users` dapat diakses dari sidebar
+- [ ] Tabel menampilkan: nama, email, role, unit, status aktif, tanggal daftar
+- [ ] Filter role: Semua / Customer / OB / Admin
+- [ ] Filter status: Semua / Aktif / Nonaktif
+- [ ] Search field filter nama atau email (case-insensitive)
+- [ ] Badge count total user tampil
+- [ ] Tidak ada TypeScript error
+
+#### Phases & Checklist
+
+**Phase 1 — API & Types**
+- [x] Tambah `UserFilters` ke `src/lib/api/types.ts`
+- [x] Tambah `listUsers` ke `src/lib/api/admin.ts`
+
+**Phase 2 — Komponen & Halaman**
+- [x] Buat `src/components/admin/UserManager.tsx`
+- [x] Buat `src/app/(admin)/admin/users/page.tsx`
+- [x] Tambah link "Kelola User" ke `AdminSidebar.tsx`
+
+**Phase 3 — Verifikasi**
+- [x] `npm run build` — tidak ada TypeScript error
+- [ ] Test manual: filter role, status, search
+- [ ] Update `docs/features.md` → status Done
+
+---
+
 ## Completed Features
 
 <!-- Fitur yang sudah selesai. Pindahkan dari Active setelah semua checklist [x]. -->
