@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -10,6 +13,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
+import { Pencil, Mail } from "lucide-react";
+import { ApiError } from "@/lib/api/client";
+import {
+  updateUserRoleAction,
+  updateUserStatusAction,
+  sendUserResetPasswordAction,
+} from "@/lib/actions/admin";
 import type { User, UserRole } from "@/lib/api/types";
 
 interface Props {
@@ -29,13 +41,24 @@ const ROLE_VARIANT: Record<UserRole, "default" | "secondary" | "outline"> = {
 };
 
 export function UserManager({ initialUsers }: Props) {
+  const [users, setUsers] = useState<User[]>(initialUsers);
+
+  // Filter state
   const [roleFilter, setRoleFilter] = useState<UserRole | "all">("all");
   const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("all");
   const [search, setSearch] = useState("");
 
+  // Modal state
+  const [editUser, setEditUser] = useState<User | null>(null);
+  const [formRole, setFormRole] = useState<"customer" | "ob">("customer");
+  const [formActive, setFormActive] = useState(true);
+
+  const [isSaving, startSave] = useTransition();
+  const [isSendingReset, startReset] = useTransition();
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return initialUsers.filter((u) => {
+    return users.filter((u) => {
       if (roleFilter !== "all" && u.role !== roleFilter) return false;
       if (activeFilter === "active" && !u.is_active) return false;
       if (activeFilter === "inactive" && u.is_active) return false;
@@ -43,7 +66,54 @@ export function UserManager({ initialUsers }: Props) {
         return false;
       return true;
     });
-  }, [initialUsers, roleFilter, activeFilter, search]);
+  }, [users, roleFilter, activeFilter, search]);
+
+  const openEdit = (user: User) => {
+    setEditUser(user);
+    setFormRole(user.role === "admin" ? "customer" : (user.role as "customer" | "ob"));
+    setFormActive(user.is_active);
+  };
+
+  const handleSave = () => {
+    if (!editUser) return;
+
+    startSave(async () => {
+      try {
+        let updated = editUser;
+
+        if (formRole !== editUser.role) {
+          updated = await updateUserRoleAction(editUser.id, formRole);
+        }
+
+        if (formActive !== editUser.is_active) {
+          updated = await updateUserStatusAction(editUser.id, formActive);
+        }
+
+        setUsers((prev) => prev.map((u) => (u.id === editUser.id ? updated : u)));
+        toast.success(`User ${editUser.full_name} berhasil diperbarui`);
+        setEditUser(null);
+      } catch (err) {
+        toast.error(err instanceof ApiError ? err.message : "Gagal memperbarui user");
+      }
+    });
+  };
+
+  const handleSendReset = () => {
+    if (!editUser) return;
+
+    startReset(async () => {
+      try {
+        await sendUserResetPasswordAction(editUser.id);
+        toast.success(`Link reset password dikirim ke ${editUser.email}`);
+      } catch (err) {
+        toast.error(err instanceof ApiError ? err.message : "Gagal mengirim link reset");
+      }
+    });
+  };
+
+  const isAdmin = editUser?.role === "admin";
+  const hasChanges =
+    editUser && (formRole !== editUser.role || formActive !== editUser.is_active);
 
   return (
     <div className="space-y-4">
@@ -95,18 +165,22 @@ export function UserManager({ initialUsers }: Props) {
               <th className="text-left px-4 py-3 font-medium">Unit</th>
               <th className="text-left px-4 py-3 font-medium">Status</th>
               <th className="text-left px-4 py-3 font-medium">Terdaftar</th>
+              <th className="text-right px-4 py-3 font-medium">Aksi</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
                   Tidak ada user yang sesuai filter.
                 </td>
               </tr>
             ) : (
               filtered.map((user) => (
-                <tr key={user.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                <tr
+                  key={user.id}
+                  className="border-b last:border-0 hover:bg-muted/30 transition-colors"
+                >
                   <td className="px-4 py-3 font-medium">{user.full_name}</td>
                   <td className="px-4 py-3 text-muted-foreground">{user.email}</td>
                   <td className="px-4 py-3">
@@ -117,7 +191,9 @@ export function UserManager({ initialUsers }: Props) {
                   </td>
                   <td className="px-4 py-3">
                     {user.is_active ? (
-                      <Badge variant="default" className="bg-green-600">Aktif</Badge>
+                      <Badge variant="default" className="bg-green-600">
+                        Aktif
+                      </Badge>
                     ) : (
                       <Badge variant="secondary">Nonaktif</Badge>
                     )}
@@ -129,12 +205,124 @@ export function UserManager({ initialUsers }: Props) {
                       year: "numeric",
                     })}
                   </td>
+                  <td className="px-4 py-3 text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openEdit(user)}
+                      title="Edit user"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
+
+      {/* Edit Modal */}
+      <Dialog open={!!editUser} onOpenChange={(open) => !open && setEditUser(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Edit User: {editUser?.full_name}</DialogTitle>
+          </DialogHeader>
+
+          {editUser && (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-muted-foreground text-xs">Email</Label>
+                <p className="text-sm font-medium">{editUser.email}</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Role</Label>
+                {isAdmin ? (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">Admin</Badge>
+                    <span className="text-xs text-muted-foreground">Role admin tidak dapat diubah</span>
+                  </div>
+                ) : (
+                  <Select
+                    value={formRole}
+                    onValueChange={(v) => setFormRole(v as "customer" | "ob")}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="customer">Customer</SelectItem>
+                      <SelectItem value="ob">OB</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Status Akun</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={formActive ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setFormActive(true)}
+                    className={formActive ? "bg-green-600 hover:bg-green-700" : ""}
+                  >
+                    Aktif
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={!formActive ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setFormActive(false)}
+                    className={!formActive ? "bg-destructive hover:bg-destructive/90" : ""}
+                  >
+                    Nonaktif
+                  </Button>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-1.5">
+                <p className="text-sm font-medium">Reset Password</p>
+                <p className="text-xs text-muted-foreground">
+                  Kirim link reset password ke email user.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full mt-1"
+                  onClick={handleSendReset}
+                  disabled={isSendingReset}
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  {isSendingReset ? "Mengirim..." : "Kirim Link Reset Password"}
+                </Button>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setEditUser(null)}
+                  disabled={isSaving}
+                >
+                  Batal
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleSave}
+                  disabled={isSaving || !hasChanges}
+                >
+                  {isSaving ? "Menyimpan..." : "Simpan"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

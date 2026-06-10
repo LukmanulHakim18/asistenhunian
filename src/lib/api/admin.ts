@@ -47,6 +47,23 @@ export const adminApi = {
       body: JSON.stringify(body),
     }),
 
+  updateUserRole: (id: string, role: "customer" | "ob") =>
+    serverFetchData<User>(`/v1/admin/users/${id}/role`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    }),
+
+  updateUserStatus: (id: string, is_active: boolean) =>
+    serverFetchData<User>(`/v1/admin/users/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ is_active }),
+    }),
+
+  sendResetPassword: (id: string) =>
+    serverFetchData<{ message: string }>(`/v1/admin/users/${id}/send-reset-password`, {
+      method: "POST",
+    }),
+
   listUsers: (filters?: UserFilters) => {
     const params = new URLSearchParams();
     if (filters?.role && filters.role !== "all") params.set("role", filters.role);

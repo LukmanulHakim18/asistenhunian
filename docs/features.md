@@ -415,9 +415,17 @@ Menu admin belum punya halaman untuk melihat dan memfilter daftar user (customer
 - [x] Buat `src/app/(admin)/admin/users/page.tsx`
 - [x] Tambah link "Kelola User" ke `AdminSidebar.tsx`
 
-**Phase 3 — Verifikasi**
+**Phase 3 — Modal Edit User**
+- [x] Tambah API methods: `updateUserRole`, `updateUserStatus`, `sendResetPassword` ke `adminApi`
+- [x] Tambah server actions: `updateUserRoleAction`, `updateUserStatusAction`, `sendUserResetPasswordAction`
+- [x] Tambah kolom "Edit" per row di `UserManager`
+- [x] Buat modal: role select (disable jika admin), status toggle, tombol kirim reset password
+- [x] Setelah Simpan: tutup modal + update local state
+- [x] Kirim Reset Password: fire langsung, toast sukses/gagal
+
+**Phase 4 — Verifikasi**
 - [x] `npm run build` — tidak ada TypeScript error
-- [ ] Test manual: filter role, status, search
+- [ ] Test manual: filter, edit role, toggle status, kirim reset password
 - [ ] Update `docs/features.md` → status Done
 
 ---

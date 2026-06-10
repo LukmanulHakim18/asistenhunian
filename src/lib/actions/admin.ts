@@ -33,6 +33,24 @@ export async function adminUpdateOrderStatusAction(
   revalidatePath(`/admin/orders/${orderId}`);
 }
 
+// ─── User management ─────────────────────────────────────────────────────────
+
+export async function updateUserRoleAction(id: string, role: "customer" | "ob") {
+  const user = await adminApi.updateUserRole(id, role);
+  revalidatePath("/admin/users");
+  return user;
+}
+
+export async function updateUserStatusAction(id: string, is_active: boolean) {
+  const user = await adminApi.updateUserStatus(id, is_active);
+  revalidatePath("/admin/users");
+  return user;
+}
+
+export async function sendUserResetPasswordAction(id: string) {
+  await adminApi.sendResetPassword(id);
+}
+
 // ─── OB management ───────────────────────────────────────────────────────────
 
 export async function createOBAction(data: CreateOBRequest) {
