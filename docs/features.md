@@ -430,6 +430,36 @@ Menu admin belum punya halaman untuk melihat dan memfilter daftar user (customer
 
 ---
 
+### FEAT-005: Cancel Order — Customer & Admin
+
+**Status**: ✅ Done
+**Dimulai**: 2026-06-12
+**Selesai**: 2026-06-12
+**Dikerjakan oleh**: Claude
+
+#### Specs
+
+**API endpoints**:
+- `POST /v1/orders/:id/cancel` — customer cancel (hanya pending)
+- `POST /v1/admin/orders/:id/cancel` — admin cancel (semua kecuali completed/cancelled)
+
+**File baru**:
+- `src/components/order/CancelConfirmModal.tsx` — modal shared (requireReason prop)
+- `src/components/order/CancelOrderButton.tsx` — tombol cancel untuk track page
+
+**File diubah**:
+- `src/lib/api/types.ts` — tambah `cancel_reason` ke Order
+- `src/lib/api/orders.ts` — tambah `cancelOrder`
+- `src/lib/api/admin.ts` — tambah `cancelOrder`
+- `src/lib/actions/orders.ts` — tambah `cancelOrderAction`
+- `src/lib/actions/admin.ts` — tambah `adminCancelOrderAction`
+- `src/app/(public)/order/[order_number]/track/page.tsx` — CancelOrderButton + tampilkan cancel_reason
+- `src/components/customer/OrderList.tsx` — tombol Batalkan di pending cards
+- `src/components/admin/AdminOrderDetail.tsx` — ganti CancelSection inline → modal + endpoint baru
+- `src/components/admin/AdminOrdersTable.tsx` — kolom Aksi + tombol Batalkan per row
+
+---
+
 ## Completed Features
 
 <!-- Fitur yang sudah selesai. Pindahkan dari Active setelah semua checklist [x]. -->

@@ -32,6 +32,13 @@ export const ordersApi = {
       body: JSON.stringify(body),
     }),
 
+  /** Authenticated — customer cancels their own pending order. */
+  cancelOrder: (id: string, reason?: string) =>
+    serverFetchData<{ message: string }>(`/v1/orders/${id}/cancel`, {
+      method: "POST",
+      body: JSON.stringify(reason ? { reason } : {}),
+    }),
+
   /** Authenticated — OB updates status of a specific item assigned to them. */
   updateItemStatus: (orderId: string, itemId: string, body: UpdateItemStatusRequest) =>
     serverFetchData<Order>(`/v1/orders/${orderId}/items/${itemId}/status`, {

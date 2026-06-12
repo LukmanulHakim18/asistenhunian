@@ -8,6 +8,11 @@ export async function createOrderAction(body: CreateOrderRequest): Promise<Creat
   return ordersApi.create(body);
 }
 
+export async function cancelOrderAction(orderId: string, reason?: string) {
+  await ordersApi.cancelOrder(orderId, reason);
+  revalidatePath("/dashboard");
+}
+
 export async function updateOrderStatusAction(
   orderId: string,
   status: OrderStatus,

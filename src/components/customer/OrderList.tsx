@@ -1,10 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { OrderStatusBadge } from "@/components/ob/OrderStatusBadge";
+import { CancelConfirmModal } from "@/components/order/CancelConfirmModal";
+import { cancelOrderAction } from "@/lib/actions/orders";
+import { ApiError } from "@/lib/api/client";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { toast } from "sonner";
 import type { Order, OrderStatus } from "@/lib/api/types";
 
 type Tab = "scheduled" | "progress" | "history";
@@ -47,12 +52,36 @@ interface Props {
   orders: Order[];
 }
 
-export function OrderList({ orders }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>(() => getDefaultTab(orders));
+export function OrderList({ orders: initialOrders }: Props) {
+  const [orders, setOrders] = useState<Order[]>(initialOrders);
+  const [activeTab, setActiveTab] = useState<Tab>(() => getDefaultTab(initialOrders));
+  const [cancelTarget, setCancelTarget] = useState<Order | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   const filtered = orders.filter((o) =>
     TAB_CONFIG[activeTab].statuses.includes(o.status)
   );
+
+  const handleCancel = (reason: string) => {
+    if (!cancelTarget) return;
+    startTransition(async () => {
+      try {
+        await cancelOrderAction(cancelTarget.id, reason || undefined);
+        setOrders((prev) =>
+          prev.map((o) =>
+            o.id === cancelTarget.id ? { ...o, status: "cancelled" as OrderStatus } : o
+          )
+        );
+        toast.success("Order berhasil dibatalkan");
+        setCancelTarget(null);
+        setActiveTab("history");
+        router.refresh();
+      } catch (err) {
+        toast.error(err instanceof ApiError ? err.message : "Gagal membatalkan order");
+      }
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -88,10 +117,10 @@ export function OrderList({ orders }: Props) {
       ) : (
         <div className="space-y-3">
           {filtered.map((order) => (
-            <Link
+            <div
               key={order.id}
-              href={`/order/${order.order_number}/track`}
-              className="block group"
+              className="block group cursor-pointer"
+              onClick={() => router.push(`/order/${order.order_number}/track`)}
             >
               <Card className="transition-colors group-hover:bg-accent/40">
                 <CardContent className="pt-4 pb-4">
@@ -123,16 +152,37 @@ export function OrderList({ orders }: Props) {
                         </span>
                       </p>
                     </div>
-                    <div className="shrink-0">
+                    <div className="shrink-0 flex flex-col items-end gap-2">
                       <OrderStatusBadge status={order.status} />
+                      {order.status === "pending" && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="text-xs h-7"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCancelTarget(order);
+                          }}
+                        >
+                          Batalkan
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            </Link>
+            </div>
           ))}
         </div>
       )}
+
+      <CancelConfirmModal
+        open={!!cancelTarget}
+        onOpenChange={(open) => !open && setCancelTarget(null)}
+        orderNumber={cancelTarget?.order_number ?? ""}
+        onConfirm={handleCancel}
+        isPending={isPending}
+      />
     </div>
   );
 }

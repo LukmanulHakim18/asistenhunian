@@ -7,6 +7,12 @@ import type { CreateOBRequest, UpdateOBRequest, ServiceRequest } from "@/lib/api
 
 // ─── Order management ─────────────────────────────────────────────────────────
 
+export async function adminCancelOrderAction(orderId: string, reason: string) {
+  await adminApi.cancelOrder(orderId, reason);
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+}
+
 export async function assignItemOBAction(orderId: string, itemId: string, obId: string) {
   await adminApi.assignItemOB(orderId, itemId, { ob_id: obId });
   revalidatePath("/admin/orders");

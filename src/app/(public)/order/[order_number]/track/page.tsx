@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OrderStatusBadge } from "@/components/ob/OrderStatusBadge";
 import { Separator } from "@/components/ui/separator";
 import { PaymentButton } from "@/components/order/PaymentButton";
+import { CancelOrderButton } from "@/components/order/CancelOrderButton";
 import type { OrderStatus } from "@/lib/api/types";
 import { CheckCircle, Clock, Loader, XCircle } from "lucide-react";
 
@@ -144,8 +145,27 @@ export default async function OrderTrackPage({
         </CardContent>
       </Card>
 
+      {/* Cancel Reason */}
+      {order.cancel_reason && (
+        <Card className="mb-4 border-destructive/30">
+          <CardContent className="pt-4 text-sm">
+            <p className="text-muted-foreground">
+              Alasan pembatalan:{" "}
+              <span className="text-foreground font-medium">{order.cancel_reason}</span>
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Payment Button */}
       {showPayButton && <PaymentButton paymentUrl={order.midtrans_payment_url!} />}
+
+      {/* Cancel Button */}
+      {order.status === "pending" && (
+        <div className="mb-4">
+          <CancelOrderButton orderId={order.id} orderNumber={order.order_number} />
+        </div>
+      )}
 
       <div className="flex gap-3 mt-4">
         <Link

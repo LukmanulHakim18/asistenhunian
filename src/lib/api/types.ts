@@ -151,6 +151,7 @@ export interface Order {
   platform_fee: number;
   notes: string | null;
   customer_notes: string | null;
+  cancel_reason: string | null;
   invoice_pdf_url: string | null;
   invoice_sent_at: string | null;
   midtrans_transaction_id: string | null;

@@ -64,6 +64,12 @@ export const adminApi = {
       method: "POST",
     }),
 
+  cancelOrder: (id: string, reason?: string) =>
+    serverFetchData<{ message: string }>(`/v1/admin/orders/${id}/cancel`, {
+      method: "POST",
+      body: JSON.stringify(reason ? { reason } : {}),
+    }),
+
   listUsers: (filters?: UserFilters) => {
     const params = new URLSearchParams();
     if (filters?.role && filters.role !== "all") params.set("role", filters.role);

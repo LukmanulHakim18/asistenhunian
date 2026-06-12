@@ -13,8 +13,10 @@ import {
 } from "@/components/ui/select";
 import { OrderStatusBadge } from "@/components/ob/OrderStatusBadge";
 import { formatCurrency, formatDate, formatDateTime, ORDER_STATUS_LABEL } from "@/lib/utils";
-import { assignItemOBAction, adminUpdateOrderStatusAction, confirmOrderAction } from "@/lib/actions/admin";
+import { assignItemOBAction, adminUpdateOrderStatusAction, confirmOrderAction, adminCancelOrderAction } from "@/lib/actions/admin";
+import { CancelConfirmModal } from "@/components/order/CancelConfirmModal";
 import { toast } from "sonner";
+import { ApiError } from "@/lib/api/client";
 import type { Order, OBUser, OrderStatus, OrderItem } from "@/lib/api/types";
 import { CheckCircle, Clock, Loader, XCircle } from "lucide-react";
 
@@ -259,44 +261,48 @@ function ItemAssignRow({ orderId, item, obList }: { orderId: string; item: Order
 }
 
 function CancelSection({ order }: { order: Order }) {
-  const [notes, setNotes] = useState("");
+  const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
   if (order.status === "completed" || order.status === "cancelled") return null;
 
-  const handleCancel = () => {
+  const handleCancel = (reason: string) => {
     startTransition(async () => {
       try {
-        await adminUpdateOrderStatusAction(order.id, "cancelled", notes || undefined);
+        await adminCancelOrderAction(order.id, reason);
         toast.success("Order dibatalkan");
+        setOpen(false);
         router.refresh();
-      } catch {
-        toast.error("Gagal membatalkan order");
+      } catch (err) {
+        toast.error(err instanceof ApiError ? err.message : "Gagal membatalkan order");
       }
     });
   };
 
   return (
-    <Card className="border-destructive/30">
-      <CardHeader>
-        <CardTitle className="text-base text-destructive">Batalkan Order</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="space-y-1">
-          <Label className="text-xs">Alasan pembatalan (opsional)</Label>
-          <Textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Alasan pembatalan..."
-            rows={2}
-          />
-        </div>
-        <Button variant="destructive" size="sm" onClick={handleCancel} disabled={isPending}>
-          {isPending ? "Memproses..." : "Batalkan Order"}
-        </Button>
-      </CardContent>
-    </Card>
+    <>
+      <Card className="border-destructive/30">
+        <CardContent className="pt-4">
+          <Button
+            variant="destructive"
+            size="sm"
+            className="w-full"
+            onClick={() => setOpen(true)}
+          >
+            Batalkan Order
+          </Button>
+        </CardContent>
+      </Card>
+      <CancelConfirmModal
+        open={open}
+        onOpenChange={setOpen}
+        orderNumber={order.order_number}
+        onConfirm={handleCancel}
+        isPending={isPending}
+        requireReason
+      />
+    </>
   );
 }
 
@@ -355,6 +361,12 @@ export function AdminOrderDetail({ order, obList }: Props) {
             {order.notes && (
               <div className="bg-muted rounded p-2 text-xs">
                 <span className="font-medium">Catatan:</span> {order.notes}
+              </div>
+            )}
+            {order.cancel_reason && (
+              <div className="bg-destructive/10 border border-destructive/20 rounded p-2 text-xs">
+                <span className="font-medium text-destructive">Alasan pembatalan:</span>{" "}
+                {order.cancel_reason}
               </div>
             )}
           </CardContent>
