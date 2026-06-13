@@ -53,16 +53,11 @@ export default async function OrderTrackPage({
   const authOrder = listResult.value.find((o) => o.order_number === order_number) ?? null;
   if (!authOrder) notFound();
 
-  // Gunakan UUID dari trackData untuk fetch detail (items + review per item)
-  const detailData = trackData?.id
-    ? await ordersApi.detail(trackData.id).catch(() => null)
-    : null;
-
-  // Merge: detail untuk items+review, trackData untuk status_history, authOrder untuk field lengkap
+  // Track endpoint sudah include items[].review — tidak perlu detail fetch terpisah
   const order: Order = {
     ...(trackData ?? ({} as Order)),
     ...authOrder,
-    items: detailData?.items ?? trackData?.items ?? authOrder.items,
+    items: trackData?.items ?? authOrder.items,
     status_history: trackData?.status_history ?? authOrder.status_history,
   } as Order;
 
