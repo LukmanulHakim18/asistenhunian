@@ -50,21 +50,16 @@ export default async function OrderTrackPage({
 
   if (!trackData && !authOrder) notFound();
 
-  // Fetch full detail (includes item reviews) if authenticated
-  const detailData = authOrder?.id
-    ? await ordersApi.detail(authOrder.id).catch(() => null)
-    : null;
-
-  // Merge: prefer authOrder's complete fields, use trackData for status_history,
-  // use detailData for items (includes review per item)
+  // Merge: prefer authOrder's complete fields, use trackData for items & status_history
   const order: Order = {
     ...(trackData ?? ({} as Order)),
     ...(authOrder ?? {}),
-    items: detailData?.items ?? trackData?.items ?? authOrder?.items,
+    items: trackData?.items ?? authOrder?.items,
     status_history: trackData?.status_history ?? authOrder?.status_history,
   } as Order;
 
-  const itemsSubtotal = order.items?.reduce((s, i) => s + i.subtotal, 0) ?? 0;
+  const items = Array.isArray(order.items) ? order.items : [];
+  const itemsSubtotal = items.reduce((s, i) => s + i.subtotal, 0);
   const platformFee = order.platform_fee ?? 0;
   const total = order.total ?? itemsSubtotal;
 
@@ -155,11 +150,11 @@ export default async function OrderTrackPage({
             </span>
           </div>
 
-          {order.items && order.items.length > 0 && (
+          {items.length > 0 && (
             <>
               <Separator />
               <div className="space-y-2 text-sm">
-                {order.items.map((item) => (
+                {items.map((item) => (
                   <div key={item.id} className="flex justify-between">
                     <span>{item.service_name} × {item.quantity}</span>
                     <span className="font-medium">{formatCurrency(item.subtotal)}</span>
@@ -213,14 +208,14 @@ export default async function OrderTrackPage({
       )}
 
       {/* Review per item */}
-      {order.status === "completed" && order.id && order.items && order.items.some((i) => i.status === "completed") && (
+      {order.status === "completed" && order.id && items.some((i) => i.status === "completed") && (
         <Card className="mb-4">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Review Layanan</CardTitle>
             <p className="text-sm text-muted-foreground">Bagaimana pengalaman tiap layanan?</p>
           </CardHeader>
           <CardContent className="divide-y px-6 py-0">
-            {order.items
+            {items
               .filter((i) => i.status === "completed")
               .map((item) => (
                 <ItemReviewForm key={item.id} orderId={order.id!} item={item} />

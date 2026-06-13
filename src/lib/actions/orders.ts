@@ -27,11 +27,16 @@ export async function submitItemReviewAction(
   rating: number,
   text?: string,
   isComplaint?: boolean,
-): Promise<OrderItemReview> {
-  const body = isComplaint
-    ? { rating, complaint: text }
-    : { rating, comment: text };
-  return ordersApi.submitItemReview(orderId, itemId, body);
+): Promise<{ data?: OrderItemReview; error?: string }> {
+  try {
+    const body = isComplaint
+      ? { rating, complaint: text }
+      : { rating, comment: text };
+    const data = await ordersApi.submitItemReview(orderId, itemId, body);
+    return { data };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Gagal mengirim ulasan" };
+  }
 }
 
 export async function updateOrderStatusAction(

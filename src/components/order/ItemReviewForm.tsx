@@ -75,18 +75,20 @@ export function ItemReviewForm({
       return;
     }
     startTransition(async () => {
-      try {
-        const result = await submitItemReviewAction(
-          orderId,
-          item.id,
-          rating,
-          text.trim() || undefined,
-          rating <= 3,
-        );
-        setReview(result);
+      const result = await submitItemReviewAction(
+        orderId,
+        item.id,
+        rating,
+        text.trim() || undefined,
+        rating <= 3,
+      );
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      if (result.data) {
+        setReview(result.data);
         toast.success("Ulasan terkirim");
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Gagal mengirim ulasan");
       }
     });
   };
