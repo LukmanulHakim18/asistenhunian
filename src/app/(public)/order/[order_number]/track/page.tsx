@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { PaymentButton } from "@/components/order/PaymentButton";
 import { QrisPayment } from "@/components/order/QrisPayment";
 import { CancelOrderButton } from "@/components/order/CancelOrderButton";
+import { ReviewSection } from "@/components/order/ReviewSection";
 import type { Order, OrderStatus } from "@/lib/api/types";
 import { CheckCircle, Clock, Loader, XCircle } from "lucide-react";
 
@@ -203,6 +204,11 @@ export default async function OrderTrackPage({
         <div className="mb-4">
           <CancelOrderButton orderId={order.id} orderNumber={order.order_number} />
         </div>
+      )}
+
+      {/* Review Section */}
+      {order.status === "completed" && order.id && (
+        <ReviewSection orderId={order.id} initialReview={order.review ?? null} />
       )}
 
       <div className="flex gap-3 mt-4">

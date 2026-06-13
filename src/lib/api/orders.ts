@@ -5,6 +5,8 @@ import type {
   CreateOrderResponse,
   UpdateStatusRequest,
   UpdateItemStatusRequest,
+  Review,
+  ReviewRequest,
 } from "./types";
 
 export const ordersApi = {
@@ -43,6 +45,13 @@ export const ordersApi = {
   updateItemStatus: (orderId: string, itemId: string, body: UpdateItemStatusRequest) =>
     serverFetchData<Order>(`/v1/orders/${orderId}/items/${itemId}/status`, {
       method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  /** Authenticated — customer submits a review for a completed order. */
+  submitReview: (id: string, body: ReviewRequest) =>
+    serverFetchData<Review>(`/v1/orders/${id}/review`, {
+      method: "POST",
       body: JSON.stringify(body),
     }),
 };

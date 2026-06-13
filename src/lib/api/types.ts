@@ -160,6 +160,7 @@ export interface Order {
   updated_at: string;
   items?: OrderItem[];
   status_history?: OrderStatusHistory[];
+  review?: Review | null;
 }
 
 export interface OrderItemRequest {
@@ -285,4 +286,20 @@ export interface PaymentLog {
 
 export interface ConfirmPaymentRequest {
   note?: string;
+}
+
+// ─── Reviews ─────────────────────────────────────────────────────────────────
+
+export interface Review {
+  id: string;
+  order_id: string;
+  customer_id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+}
+
+export interface ReviewRequest {
+  rating: number;
+  comment?: string;
 }

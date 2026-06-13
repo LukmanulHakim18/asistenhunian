@@ -11,6 +11,7 @@ import {
   BarChart3,
   Settings,
   LogOut,
+  Star,
 } from "lucide-react";
 
 const navItems = [
@@ -18,6 +19,7 @@ const navItems = [
   { href: "/admin/catalog", label: "Katalog Layanan", icon: Package },
   { href: "/admin/users", label: "Kelola User", icon: UserSearch },
   { href: "/admin/orders", label: "Semua Order", icon: ClipboardList },
+  { href: "/admin/reviews", label: "Manajemen Review", icon: Star },
   { href: "/admin/laporan", label: "Laporan Keuangan", icon: BarChart3 },
   { href: "/admin/settings", label: "Pengaturan", icon: Settings },
 ];

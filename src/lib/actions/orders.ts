@@ -1,7 +1,7 @@
 "use server";
 
 import { ordersApi } from "@/lib/api/orders";
-import type { OrderStatus, OrderItemStatus, CreateOrderRequest, CreateOrderResponse } from "@/lib/api/types";
+import type { OrderStatus, OrderItemStatus, CreateOrderRequest, CreateOrderResponse, Review } from "@/lib/api/types";
 import { revalidatePath } from "next/cache";
 
 export async function createOrderAction(body: CreateOrderRequest): Promise<CreateOrderResponse> {
@@ -11,6 +11,14 @@ export async function createOrderAction(body: CreateOrderRequest): Promise<Creat
 export async function cancelOrderAction(orderId: string, reason?: string) {
   await ordersApi.cancelOrder(orderId, reason);
   revalidatePath("/dashboard");
+}
+
+export async function submitReviewAction(
+  orderId: string,
+  rating: number,
+  comment?: string,
+): Promise<Review> {
+  return ordersApi.submitReview(orderId, { rating, comment });
 }
 
 export async function updateOrderStatusAction(

@@ -12,6 +12,7 @@ import type {
   User,
   UserFilters,
   PaymentLog,
+  Review,
 } from "./types";
 
 export const adminApi = {
@@ -88,6 +89,8 @@ export const adminApi = {
     const qs = params.toString();
     return serverFetchData<User[]>(`/v1/admin/users${qs ? `?${qs}` : ""}`);
   },
+
+  listReviews: () => serverFetchData<Review[]>("/v1/admin/reviews"),
 
   getConfigs: () => serverFetchData<ConfigItem[]>("/v1/config"),
 
