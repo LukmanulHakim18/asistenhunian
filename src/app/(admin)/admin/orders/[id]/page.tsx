@@ -24,6 +24,8 @@ export default async function AdminOrderDetailPage({
 
   if (!order) notFound();
 
+  const paymentLogs = await adminApi.getPaymentLogs(id).catch(() => []);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -43,7 +45,7 @@ export default async function AdminOrderDetailPage({
         </div>
       </div>
 
-      <AdminOrderDetail order={order} obList={obList} />
+      <AdminOrderDetail order={order} obList={obList} paymentLogs={paymentLogs} />
     </div>
   );
 }

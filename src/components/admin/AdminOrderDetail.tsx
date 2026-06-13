@@ -13,11 +13,11 @@ import {
 } from "@/components/ui/select";
 import { OrderStatusBadge } from "@/components/ob/OrderStatusBadge";
 import { formatCurrency, formatDate, formatDateTime, ORDER_STATUS_LABEL } from "@/lib/utils";
-import { assignItemOBAction, adminUpdateOrderStatusAction, confirmOrderAction, adminCancelOrderAction } from "@/lib/actions/admin";
+import { assignItemOBAction, adminUpdateOrderStatusAction, confirmOrderAction, adminCancelOrderAction, confirmPaymentAction } from "@/lib/actions/admin";
 import { CancelConfirmModal } from "@/components/order/CancelConfirmModal";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/client";
-import type { Order, OBUser, OrderStatus, OrderItem } from "@/lib/api/types";
+import type { Order, OBUser, OrderStatus, OrderItem, PaymentLog } from "@/lib/api/types";
 import { CheckCircle, Clock, Loader, XCircle } from "lucide-react";
 
 const STATUS_ICONS: Record<OrderStatus, React.ReactNode> = {
@@ -51,6 +51,130 @@ const PAYMENT_METHOD_LABEL: Record<string, string> = {
 interface Props {
   order: Order;
   obList: OBUser[];
+  paymentLogs: PaymentLog[];
+}
+
+const PAYMENT_SOURCE_LABEL: Record<string, string> = {
+  midtrans: "Midtrans",
+  manual: "Manual (Admin)",
+};
+
+function ConfirmPaymentSection({ order }: { order: Order }) {
+  const [note, setNote] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+
+  const shouldShow =
+    order.payment_method !== "qris" &&
+    order.payment_status === "unpaid" &&
+    order.status !== "cancelled" &&
+    order.status !== "completed";
+
+  if (!shouldShow) return null;
+
+  const handleConfirm = () => {
+    startTransition(async () => {
+      try {
+        await confirmPaymentAction(order.id, note || undefined);
+        toast.success("Pembayaran dikonfirmasi");
+        router.refresh();
+      } catch (err) {
+        toast.error(err instanceof ApiError ? err.message : "Gagal konfirmasi pembayaran");
+      }
+    });
+  };
+
+  return (
+    <Card className="border-green-500/30">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base text-green-700 dark:text-green-400">
+          Konfirmasi Pembayaran
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-xs text-muted-foreground">
+          Konfirmasi pembayaran manual untuk metode{" "}
+          <span className="font-medium capitalize">{order.payment_method}</span>.
+          QRIS dikonfirmasi otomatis via webhook.
+        </p>
+        <div className="space-y-1">
+          <Label className="text-xs">Catatan (opsional)</Label>
+          <Textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Misal: sudah transfer, bukti terlampir di WA"
+            rows={2}
+          />
+        </div>
+        <Button
+          className="w-full bg-green-600 hover:bg-green-700 text-white"
+          size="sm"
+          onClick={handleConfirm}
+          disabled={isPending}
+        >
+          {isPending ? "Memproses..." : "Konfirmasi Pembayaran"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PaymentLogsSection({ logs }: { logs: PaymentLog[] }) {
+  if (logs.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Riwayat Pembayaran</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">Belum ada riwayat pembayaran.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Riwayat Pembayaran</CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="divide-y">
+          {logs.map((log) => (
+            <div key={log.id} className="px-4 py-3 text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-medium">
+                    {PAYMENT_SOURCE_LABEL[log.source] ?? log.source}
+                    {" · "}
+                    <span className="capitalize">{log.status}</span>
+                  </p>
+                  {log.note && (
+                    <p className="text-xs text-muted-foreground truncate">{log.note}</p>
+                  )}
+                  {log.confirmed_by && (
+                    <p className="text-xs text-muted-foreground">oleh: {log.confirmed_by}</p>
+                  )}
+                </div>
+                <div className="text-right shrink-0">
+                  {log.amount > 0 && (
+                    <p className="font-semibold">{formatCurrency(log.amount)}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(log.created_at).toLocaleDateString("id-ID", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 // Controlled item row used when building the confirm payload (pending orders)
@@ -306,7 +430,7 @@ function CancelSection({ order }: { order: Order }) {
   );
 }
 
-export function AdminOrderDetail({ order, obList }: Props) {
+export function AdminOrderDetail({ order, obList, paymentLogs }: Props) {
   const platformFee = order.platform_fee ?? 0;
   const itemsSubtotal = order.items?.reduce((s, i) => s + i.subtotal, 0) ?? order.subtotal ?? 0;
 
@@ -469,7 +593,9 @@ export function AdminOrderDetail({ order, obList }: Props) {
           </CardContent>
         </Card>
 
+        <ConfirmPaymentSection order={order} />
         <CancelSection order={order} />
+        <PaymentLogsSection logs={paymentLogs} />
       </div>
     </div>
   );

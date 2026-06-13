@@ -11,6 +11,7 @@ import type {
   SetConfigRequest,
   User,
   UserFilters,
+  PaymentLog,
 } from "./types";
 
 export const adminApi = {
@@ -63,6 +64,15 @@ export const adminApi = {
     serverFetchData<{ message: string }>(`/v1/admin/users/${id}/send-reset-password`, {
       method: "POST",
     }),
+
+  confirmPayment: (id: string, note?: string) =>
+    serverFetchData<{ message: string }>(`/v1/admin/orders/${id}/payment`, {
+      method: "PATCH",
+      body: JSON.stringify(note ? { note } : {}),
+    }),
+
+  getPaymentLogs: (id: string) =>
+    serverFetchData<PaymentLog[]>(`/v1/admin/orders/${id}/payment-logs`),
 
   cancelOrder: (id: string, reason?: string) =>
     serverFetchData<{ message: string }>(`/v1/admin/orders/${id}/cancel`, {

@@ -268,3 +268,21 @@ export interface UserFilters {
   is_active?: boolean | "all";
   search?: string;
 }
+
+export interface PaymentLog {
+  id: string;
+  order_id: string;
+  transaction_id: string;
+  payment_method: PaymentMethod;
+  source: string;
+  status: string;
+  amount: number;
+  note: string | null;
+  confirmed_by: string | null;
+  raw_data: string | null;
+  created_at: string;
+}
+
+export interface ConfirmPaymentRequest {
+  note?: string;
+}
