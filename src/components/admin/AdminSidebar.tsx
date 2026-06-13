@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   Package,
-  Users,
   UserSearch,
   ClipboardList,
   BarChart3,
@@ -17,7 +16,6 @@ import {
 const navItems = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/catalog", label: "Katalog Layanan", icon: Package },
-  { href: "/admin/ob", label: "Kelola OB", icon: Users },
   { href: "/admin/users", label: "Kelola User", icon: UserSearch },
   { href: "/admin/orders", label: "Semua Order", icon: ClipboardList },
   { href: "/admin/laporan", label: "Laporan Keuangan", icon: BarChart3 },
