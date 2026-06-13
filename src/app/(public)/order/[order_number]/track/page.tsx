@@ -1,5 +1,5 @@
 import { ordersApi } from "@/lib/api/orders";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn, formatCurrency, formatDate, formatDateTime, ORDER_STATUS_LABEL } from "@/lib/utils";
@@ -43,19 +43,22 @@ export default async function OrderTrackPage({
   ]);
 
   const trackData = trackResult.status === "fulfilled" ? trackResult.value : null;
-  const authOrder =
-    listResult.status === "fulfilled"
-      ? (listResult.value.find((o) => o.order_number === order_number) ?? null)
-      : null;
 
-  if (!trackData && !authOrder) notFound();
+  // Require login — redirect jika belum autentikasi
+  if (listResult.status !== "fulfilled") {
+    redirect(`/login?next=/order/${encodeURIComponent(order_number)}/track`);
+  }
 
-  // Merge: prefer authOrder's complete fields, use trackData for items & status_history
+  // Verifikasi kepemilikan — 404 jika order bukan milik user ini
+  const authOrder = listResult.value.find((o) => o.order_number === order_number) ?? null;
+  if (!authOrder) notFound();
+
+  // Merge: authOrder untuk field lengkap, trackData untuk items & status_history
   const order: Order = {
     ...(trackData ?? ({} as Order)),
-    ...(authOrder ?? {}),
-    items: trackData?.items ?? authOrder?.items,
-    status_history: trackData?.status_history ?? authOrder?.status_history,
+    ...authOrder,
+    items: trackData?.items ?? authOrder.items,
+    status_history: trackData?.status_history ?? authOrder.status_history,
   } as Order;
 
   const items = Array.isArray(order.items) ? order.items : [];
