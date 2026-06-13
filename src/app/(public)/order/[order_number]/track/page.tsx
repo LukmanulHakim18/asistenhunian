@@ -9,8 +9,10 @@ import { Separator } from "@/components/ui/separator";
 import { PaymentButton } from "@/components/order/PaymentButton";
 import { QrisPayment } from "@/components/order/QrisPayment";
 import { CancelOrderButton } from "@/components/order/CancelOrderButton";
-import type { OrderStatus } from "@/lib/api/types";
+import type { Order, OrderStatus } from "@/lib/api/types";
 import { CheckCircle, Clock, Loader, XCircle } from "lucide-react";
+
+export const dynamic = "force-dynamic";
 
 const STATUS_ICONS: Record<OrderStatus, React.ReactNode> = {
   pending: <Clock className="h-4 w-4 text-yellow-500" />,
@@ -20,14 +22,40 @@ const STATUS_ICONS: Record<OrderStatus, React.ReactNode> = {
   cancelled: <XCircle className="h-4 w-4 text-red-500" />,
 };
 
+const PAYMENT_METHOD_LABEL: Record<string, string> = {
+  cash: "Cash ke OB",
+  transfer: "Transfer Online",
+  qris: "QRIS",
+};
+
 export default async function OrderTrackPage({
   params,
 }: {
   params: Promise<{ order_number: string }>;
 }) {
   const { order_number } = await params;
-  const order = await ordersApi.track(order_number).catch(() => null);
-  if (!order) notFound();
+
+  // Fetch parallel: public track (items + status_history) + authenticated list (full fields)
+  const [trackResult, listResult] = await Promise.allSettled([
+    ordersApi.track(order_number),
+    ordersApi.list(),
+  ]);
+
+  const trackData = trackResult.status === "fulfilled" ? trackResult.value : null;
+  const authOrder =
+    listResult.status === "fulfilled"
+      ? (listResult.value.find((o) => o.order_number === order_number) ?? null)
+      : null;
+
+  if (!trackData && !authOrder) notFound();
+
+  // Merge: prefer authOrder's complete fields, use trackData for items & status_history
+  const order: Order = {
+    ...(trackData ?? ({} as Order)),
+    ...(authOrder ?? {}),
+    items: trackData?.items ?? authOrder?.items,
+    status_history: trackData?.status_history ?? authOrder?.status_history,
+  } as Order;
 
   const itemsSubtotal = order.items?.reduce((s, i) => s + i.subtotal, 0) ?? 0;
   const platformFee = order.platform_fee ?? 0;
@@ -96,8 +124,12 @@ export default async function OrderTrackPage({
           <div className="grid grid-cols-2 gap-1 text-sm">
             <span className="text-muted-foreground">Nama</span>
             <span className="font-medium">{order.customer_name}</span>
-            <span className="text-muted-foreground">Nomor Unit</span>
-            <span className="font-medium">{order.unit_number}</span>
+            {order.unit_number && (
+              <>
+                <span className="text-muted-foreground">Nomor Unit</span>
+                <span className="font-medium">{order.unit_number}</span>
+              </>
+            )}
             <span className="text-muted-foreground">Tanggal Diinginkan</span>
             <span className="font-medium">{formatDate(order.requested_date)}</span>
             {order.confirmed_datetime && (
@@ -108,11 +140,7 @@ export default async function OrderTrackPage({
             )}
             <span className="text-muted-foreground">Pembayaran</span>
             <span className="font-medium">
-              {order.payment_method === "cash"
-                ? "Cash ke OB"
-                : order.payment_method === "qris"
-                  ? "QRIS"
-                  : "Transfer Online"}
+              {PAYMENT_METHOD_LABEL[order.payment_method ?? ""] ?? "—"}
               {" · "}
               <span className={order.payment_status === "paid" ? "text-green-600" : "text-orange-600"}>
                 {order.payment_status === "paid" ? "Lunas" : "Belum dibayar"}
@@ -171,7 +199,7 @@ export default async function OrderTrackPage({
       {showPayButton && <PaymentButton paymentUrl={order.midtrans_payment_url!} />}
 
       {/* Cancel Button */}
-      {order.status === "pending" && (
+      {order.status === "pending" && order.id && (
         <div className="mb-4">
           <CancelOrderButton orderId={order.id} orderNumber={order.order_number} />
         </div>
