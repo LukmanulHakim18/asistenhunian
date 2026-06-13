@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { PaymentButton } from "@/components/order/PaymentButton";
 import { QrisPayment } from "@/components/order/QrisPayment";
 import { CancelOrderButton } from "@/components/order/CancelOrderButton";
-import { ReviewSection } from "@/components/order/ReviewSection";
+import { ItemReviewForm } from "@/components/order/ItemReviewForm";
 import type { Order, OrderStatus } from "@/lib/api/types";
 import { CheckCircle, Clock, Loader, XCircle } from "lucide-react";
 
@@ -50,11 +50,17 @@ export default async function OrderTrackPage({
 
   if (!trackData && !authOrder) notFound();
 
-  // Merge: prefer authOrder's complete fields, use trackData for items & status_history
+  // Fetch full detail (includes item reviews) if authenticated
+  const detailData = authOrder?.id
+    ? await ordersApi.detail(authOrder.id).catch(() => null)
+    : null;
+
+  // Merge: prefer authOrder's complete fields, use trackData for status_history,
+  // use detailData for items (includes review per item)
   const order: Order = {
     ...(trackData ?? ({} as Order)),
     ...(authOrder ?? {}),
-    items: trackData?.items ?? authOrder?.items,
+    items: detailData?.items ?? trackData?.items ?? authOrder?.items,
     status_history: trackData?.status_history ?? authOrder?.status_history,
   } as Order;
 
@@ -206,9 +212,21 @@ export default async function OrderTrackPage({
         </div>
       )}
 
-      {/* Review Section */}
-      {order.status === "completed" && order.id && (
-        <ReviewSection orderId={order.id} initialReview={order.review ?? null} />
+      {/* Review per item */}
+      {order.status === "completed" && order.id && order.items && order.items.some((i) => i.status === "completed") && (
+        <Card className="mb-4">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Review Layanan</CardTitle>
+            <p className="text-sm text-muted-foreground">Bagaimana pengalaman tiap layanan?</p>
+          </CardHeader>
+          <CardContent className="divide-y px-6 py-0">
+            {order.items
+              .filter((i) => i.status === "completed")
+              .map((item) => (
+                <ItemReviewForm key={item.id} orderId={order.id!} item={item} />
+              ))}
+          </CardContent>
+        </Card>
       )}
 
       <div className="flex gap-3 mt-4">

@@ -107,6 +107,13 @@ export interface ServiceRequest {
 
 // ─── Orders ──────────────────────────────────────────────────────────────────
 
+export interface OrderItemReview {
+  rating: number;
+  comment: string;
+  complaint: string;
+  ob_id: string;
+}
+
 export interface OrderItem {
   id: string;
   order_id: string;
@@ -120,6 +127,7 @@ export interface OrderItem {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  review?: OrderItemReview | null;
 }
 
 export interface OrderStatusHistory {

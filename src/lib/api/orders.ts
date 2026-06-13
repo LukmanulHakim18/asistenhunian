@@ -7,6 +7,7 @@ import type {
   UpdateItemStatusRequest,
   Review,
   ReviewRequest,
+  OrderItemReview,
 } from "./types";
 
 export const ordersApi = {
@@ -51,6 +52,17 @@ export const ordersApi = {
   /** Authenticated — customer submits a review for a completed order. */
   submitReview: (id: string, body: ReviewRequest) =>
     serverFetchData<Review>(`/v1/orders/${id}/review`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  /** Authenticated — customer submits a review for a specific completed item. */
+  submitItemReview: (
+    orderId: string,
+    itemId: string,
+    body: { rating: number; comment?: string; complaint?: string },
+  ) =>
+    serverFetchData<OrderItemReview>(`/v1/orders/${orderId}/items/${itemId}/review`, {
       method: "POST",
       body: JSON.stringify(body),
     }),
