@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { submitReviewAction } from "@/lib/actions/orders";
 import type { Review } from "@/lib/api/types";
 
-function StarPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function StarPicker({ value, onChange, onClearComment }: { value: number; onChange: (v: number) => void; onClearComment: () => void }) {
   const [hover, setHover] = useState(0);
   return (
     <div className="flex gap-1">
@@ -18,7 +18,7 @@ function StarPicker({ value, onChange }: { value: number; onChange: (v: number) 
         <button
           key={star}
           type="button"
-          onClick={() => onChange(star)}
+          onClick={() => { onChange(star); if (star > 3) onClearComment(); }}
           onMouseEnter={() => setHover(star)}
           onMouseLeave={() => setHover(0)}
           className="p-0.5 focus:outline-none"
@@ -106,14 +106,19 @@ export function ReviewSection({
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <StarPicker value={rating} onChange={setRating} />
-        <Textarea
-          placeholder="Komentar (opsional)..."
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          rows={3}
-          disabled={isPending}
-        />
+        <StarPicker value={rating} onChange={setRating} onClearComment={() => setComment("")} />
+        {rating > 0 && rating <= 3 && (
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium">Keluhan <span className="text-muted-foreground font-normal">(opsional)</span></p>
+            <Textarea
+              placeholder="Ceritakan kendala atau keluhan Anda..."
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              rows={3}
+              disabled={isPending}
+            />
+          </div>
+        )}
         <Button
           onClick={handleSubmit}
           disabled={isPending || rating === 0}
