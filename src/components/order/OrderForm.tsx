@@ -244,6 +244,9 @@ export function OrderForm({ allServices, platformFee = 0 }: OrderFormProps) {
                   <span>Total</span>
                   <span>{formatCurrency(grandTotal)}</span>
                 </div>
+                <Button className="w-full mt-2" onClick={() => setStep(2)}>
+                  Lanjut →
+                </Button>
               </CardContent>
             </Card>
           )}
@@ -293,9 +296,6 @@ export function OrderForm({ allServices, platformFee = 0 }: OrderFormProps) {
             </CardContent>
           </Card>
 
-          <Button className="w-full" disabled={items.length === 0} onClick={() => setStep(2)}>
-            Lanjut →
-          </Button>
         </div>
       )}
 
