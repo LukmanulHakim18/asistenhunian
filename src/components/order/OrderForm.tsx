@@ -336,7 +336,8 @@ export function OrderForm({ allServices, platformFee = 0 }: OrderFormProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="cash">Cash — Bayar langsung ke OB saat selesai</SelectItem>
-                  <SelectItem value="transfer">Transfer — Bayar via Midtrans (QRIS, VA, Kartu)</SelectItem>
+                  <SelectItem value="transfer">Transfer — Bayar via VA / Kartu (Midtrans)</SelectItem>
+                  <SelectItem value="qris">QRIS — Scan QR Code setelah dikonfirmasi admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>

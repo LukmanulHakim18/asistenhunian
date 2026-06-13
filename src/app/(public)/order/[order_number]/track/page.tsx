@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OrderStatusBadge } from "@/components/ob/OrderStatusBadge";
 import { Separator } from "@/components/ui/separator";
 import { PaymentButton } from "@/components/order/PaymentButton";
+import { QrisPayment } from "@/components/order/QrisPayment";
 import { CancelOrderButton } from "@/components/order/CancelOrderButton";
 import type { OrderStatus } from "@/lib/api/types";
 import { CheckCircle, Clock, Loader, XCircle } from "lucide-react";
@@ -32,11 +33,13 @@ export default async function OrderTrackPage({
   const platformFee = order.platform_fee ?? 0;
   const total = order.total ?? itemsSubtotal;
 
-  const showPayButton =
-    order.payment_method === "transfer" &&
+  const unpaidAndActive =
     order.payment_status === "unpaid" &&
     order.status !== "cancelled" &&
     !!order.midtrans_payment_url;
+
+  const showQris = order.payment_method === "qris" && unpaidAndActive;
+  const showPayButton = order.payment_method === "transfer" && unpaidAndActive;
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-2xl">
@@ -105,7 +108,11 @@ export default async function OrderTrackPage({
             )}
             <span className="text-muted-foreground">Pembayaran</span>
             <span className="font-medium">
-              {order.payment_method === "cash" ? "Cash ke OB" : "Transfer Online"}
+              {order.payment_method === "cash"
+                ? "Cash ke OB"
+                : order.payment_method === "qris"
+                  ? "QRIS"
+                  : "Transfer Online"}
               {" · "}
               <span className={order.payment_status === "paid" ? "text-green-600" : "text-orange-600"}>
                 {order.payment_status === "paid" ? "Lunas" : "Belum dibayar"}
@@ -157,7 +164,10 @@ export default async function OrderTrackPage({
         </Card>
       )}
 
-      {/* Payment Button */}
+      {/* QRIS Display */}
+      {showQris && <QrisPayment qrUrl={order.midtrans_payment_url!} />}
+
+      {/* Transfer Payment Button */}
       {showPayButton && <PaymentButton paymentUrl={order.midtrans_payment_url!} />}
 
       {/* Cancel Button */}
